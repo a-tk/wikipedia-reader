@@ -69,6 +69,49 @@
     return list;
   }
 
+  // Build a "Select all" master checkbox that toggles every section checkbox
+  // in the given list and reflects their combined state (checked / unchecked /
+  // indeterminate when the selection is mixed). Returns the row element plus a
+  // sync() to refresh the master from the current section checkboxes.
+  function buildSelectAll(listEl, opts) {
+    const doc = (opts && opts.document) || document;
+    const master = h(doc, "input", { type: "checkbox", id: "wr-select-all" });
+    master.checked = true;
+
+    const sectionBoxes = () =>
+      Array.from(listEl.querySelectorAll('input[type="checkbox"]'));
+
+    function sync() {
+      const boxes = sectionBoxes();
+      const total = boxes.length;
+      const checked = boxes.filter((b) => b.checked).length;
+      master.checked = total > 0 && checked === total;
+      master.indeterminate = checked > 0 && checked < total;
+    }
+
+    master.addEventListener("change", () => {
+      // When clicked from an indeterminate state, drive everything to checked.
+      const target = master.indeterminate ? true : master.checked;
+      master.indeterminate = false;
+      master.checked = target;
+      sectionBoxes().forEach((b) => {
+        b.checked = target;
+      });
+    });
+
+    // Keep the master in sync when individual section boxes change.
+    listEl.addEventListener("change", (ev) => {
+      if (ev.target && ev.target !== master && ev.target.type === "checkbox") {
+        sync();
+      }
+    });
+
+    const label = h(doc, "label", { for: "wr-select-all", text: "Select all" });
+    const row = h(doc, "div", { class: "wr-select-all-row" }, [master, label]);
+    sync();
+    return { row, master, sync };
+  }
+
   // Read the ids of the checked sections, in document order.
   function collectSelectedIds(listEl) {
     if (!listEl) return [];
@@ -165,6 +208,7 @@
 
     const bar = createControlBar(cfg.handlers, { document: d });
     const outline = buildOutlineList(cfg.sections, { document: d });
+    const selectAll = buildSelectAll(outline, { document: d });
 
     const outlinePanel = h(d, "div", {
       class: "wr-outline-panel",
@@ -172,6 +216,7 @@
       "aria-label": "Choose sections to read",
     }, [
       h(d, "div", { class: "wr-outline-title", text: "Read these sections" }),
+      selectAll.row,
       outline,
     ]);
 
@@ -186,6 +231,7 @@
       container,
       bar,
       outlineEl: outline,
+      selectAll,
       getSelectedIds: () => collectSelectedIds(outline),
       destroy: () => container.remove(),
     };
@@ -194,6 +240,7 @@
   return {
     CONTAINER_ID,
     buildOutlineList,
+    buildSelectAll,
     collectSelectedIds,
     createControlBar,
     mount,

@@ -21,6 +21,28 @@ describe("filters.sectionText", () => {
     expect(text).not.toMatch(/\[\s*1\s*\]/);
   });
 
+  it("never reads the .shortdescription summary, before the intro prose", () => {
+    const lead = sectionByHeading(root, "");
+    const text = filters.sectionText(lead.contentNodes, filters.DEFAULT_FILTERS);
+    expect(text).not.toContain("Short summary that should not be read");
+    // The real intro prose still comes through.
+    expect(text).toContain("example subject");
+  });
+
+  it("drops shortdescription even if all toggle filters are off", () => {
+    const lead = sectionByHeading(root, "");
+    const allOff = {
+      infobox: false,
+      table: false,
+      caption: false,
+      math: false,
+      footnote: false,
+      code: false,
+    };
+    const text = filters.sectionText(lead.contentNodes, allOff);
+    expect(text).not.toContain("Short summary that should not be read");
+  });
+
   it("drops infobox content from the lead", () => {
     const lead = sectionByHeading(root, "");
     const text = filters.sectionText(lead.contentNodes, filters.DEFAULT_FILTERS);
@@ -103,5 +125,41 @@ describe("filters.sectionToChunks", () => {
     const all = chunks.join(" ");
     expect(all).not.toContain("[2]");
     expect(all).not.toContain("caption");
+  });
+});
+
+describe("filters.sectionText code blocks", () => {
+  let root;
+  beforeEach(() => {
+    root = loadFixture("sample-article.html");
+  });
+
+  it("drops syntax-highlighted code blocks when the code filter is on", () => {
+    const legacy = sectionByHeading(root, "Legacy section");
+    const text = filters.sectionText(legacy.contentNodes, filters.DEFAULT_FILTERS);
+    expect(text).toContain("legacy heading markup");
+    expect(text).toContain("Prose after the code example continues here");
+    expect(text).not.toContain("int main");
+  });
+
+  it("drops bare <pre> blocks when the code filter is on", () => {
+    const legacy = sectionByHeading(root, "Legacy section");
+    const text = filters.sectionText(legacy.contentNodes, filters.DEFAULT_FILTERS);
+    expect(text).not.toContain("plain preformatted console output");
+  });
+
+  it("keeps code text when the code filter is off", () => {
+    const legacy = sectionByHeading(root, "Legacy section");
+    const text = filters.sectionText(legacy.contentNodes, {
+      code: false,
+      table: false,
+      infobox: false,
+    });
+    expect(text).toContain("int main");
+    expect(text).toContain("plain preformatted console output");
+  });
+
+  it("code is in the default filter set and defaults to on", () => {
+    expect(filters.DEFAULT_FILTERS.code).toBe(true);
   });
 });

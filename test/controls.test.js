@@ -113,3 +113,83 @@ describe("mount", () => {
     expect(ui.getSelectedIds()).not.toContain("References");
   });
 });
+
+describe("buildSelectAll", () => {
+  function setup() {
+    document.body.innerHTML = "";
+    const list = controls.buildOutlineList(sampleSections, { document });
+    document.body.appendChild(list);
+    const selectAll = controls.buildSelectAll(list, { document });
+    document.body.appendChild(selectAll.row);
+    return { list, selectAll };
+  }
+
+  it("starts checked when every section is selected", () => {
+    const { selectAll } = setup();
+    expect(selectAll.master.checked).toBe(true);
+    expect(selectAll.master.indeterminate).toBe(false);
+  });
+
+  it("deselects every section when toggled off", () => {
+    const { list, selectAll } = setup();
+    selectAll.master.checked = false;
+    selectAll.master.dispatchEvent(new Event("change"));
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b) => expect(b.checked).toBe(false));
+    expect(controls.collectSelectedIds(list)).toEqual([]);
+  });
+
+  it("reselects every section when toggled back on", () => {
+    const { list, selectAll } = setup();
+    selectAll.master.checked = false;
+    selectAll.master.dispatchEvent(new Event("change"));
+    selectAll.master.checked = true;
+    selectAll.master.dispatchEvent(new Event("change"));
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b) => expect(b.checked).toBe(true));
+  });
+
+  it("becomes indeterminate when only some sections are selected", () => {
+    const { list, selectAll } = setup();
+    const first = list.querySelector('input[type="checkbox"]');
+    first.checked = false;
+    first.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(selectAll.master.checked).toBe(false);
+    expect(selectAll.master.indeterminate).toBe(true);
+  });
+
+  it("becomes unchecked when all sections are manually deselected", () => {
+    const { list, selectAll } = setup();
+    list.querySelectorAll('input[type="checkbox"]').forEach((b) => {
+      b.checked = false;
+      b.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(selectAll.master.checked).toBe(false);
+    expect(selectAll.master.indeterminate).toBe(false);
+  });
+
+  it("clicking from indeterminate selects everything", () => {
+    const { list, selectAll } = setup();
+    const first = list.querySelector('input[type="checkbox"]');
+    first.checked = false;
+    first.dispatchEvent(new Event("change", { bubbles: true }));
+    // Now indeterminate; simulate a user click driving it to all-selected.
+    selectAll.master.dispatchEvent(new Event("change"));
+    const boxes = list.querySelectorAll('input[type="checkbox"]');
+    boxes.forEach((b) => expect(b.checked).toBe(true));
+    expect(selectAll.master.indeterminate).toBe(false);
+    expect(selectAll.master.checked).toBe(true);
+  });
+});
+
+describe("mount select-all integration", () => {
+  it("exposes a selectAll master wired to the outline", () => {
+    document.body.innerHTML = "";
+    const ui = controls.mount(document, { sections: sampleSections, handlers: {} });
+    expect(ui.selectAll.master).toBeTruthy();
+    ui.selectAll.master.checked = false;
+    ui.selectAll.master.dispatchEvent(new Event("change"));
+    expect(ui.getSelectedIds()).toEqual([]);
+    ui.destroy();
+  });
+});

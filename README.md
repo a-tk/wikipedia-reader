@@ -14,7 +14,11 @@ No accounts, no API keys, no network calls — all speech uses the offline
 - **Per-article section picker** — before you press play, tick exactly which
   headings/sections get read. Everything is selected by default.
 - **Content filters** — skip infoboxes, tables, image captions, math formulas,
-  and inline footnote markers like `[1]`. Toggle each category in settings.
+  inline footnote markers like `[1]`, and programming examples / code blocks.
+  Toggle each category in settings.
+- **Select all / none** — a master checkbox in the section list toggles every
+  section at once, and shows a mixed (indeterminate) state when only some are
+  selected.
 - **Voice settings** — choose voice, rate, pitch, and volume. Settings persist
   across sessions and sync via your browser profile.
 - **In-page controls** — a floating bar with play/pause, stop, and next-section.
@@ -61,7 +65,11 @@ entry in `chrome://extensions`.
 - **Voice / Rate / Pitch / Volume** — standard speech controls, with a
   **Preview voice** button.
 - **Skip this content** — checkboxes for infoboxes, tables, image captions,
-  math formulas, and footnote markers. Checked means "skip, don't read".
+  math formulas, footnote markers, and programming examples / code blocks.
+  Checked means "skip, don't read". Code filtering targets syntax-highlighted
+  blocks (e.g. the examples under "Syntactic form" on the
+  [Tail call](https://en.wikipedia.org/wiki/Tail_call) article) and
+  preformatted blocks; short inline code inside a sentence is still read.
 
 ## Project structure
 

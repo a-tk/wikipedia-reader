@@ -51,6 +51,14 @@ describe("settings.normalize", () => {
     expect(s.filters.math).toBe(true); // default preserved
   });
 
+  it("includes the code filter, defaulting to on", () => {
+    expect(settings.DEFAULTS.filters.code).toBe(true);
+    const s = settings.normalize({ filters: { code: false } });
+    expect(s.filters.code).toBe(false);
+    const d = settings.normalize({ filters: {} });
+    expect(d.filters.code).toBe(true);
+  });
+
   it("rejects an empty voiceURI in favor of null", () => {
     const s = settings.normalize({ voice: { voiceURI: "" } });
     expect(s.voice.voiceURI).toBe(null);

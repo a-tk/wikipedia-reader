@@ -27,6 +27,7 @@
       caption: true,
       math: true,
       footnote: true,
+      code: true,
     },
   };
 
@@ -70,6 +71,7 @@
         caption: asBool(f.caption, DEFAULTS.filters.caption),
         math: asBool(f.math, DEFAULTS.filters.math),
         footnote: asBool(f.footnote, DEFAULTS.filters.footnote),
+        code: asBool(f.code, DEFAULTS.filters.code),
       },
     };
   }

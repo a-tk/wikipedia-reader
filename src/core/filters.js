@@ -23,18 +23,26 @@
     caption: true,
     math: true,
     footnote: true,
+    code: true,
   };
 
   // Selectors removed from a cloned subtree, keyed by filter category.
+  // code: syntax-highlighted blocks (SyntaxHighlight extension -> .mw-highlight)
+  //       and preformatted/source blocks, which on Wikipedia are code or
+  //       console output. Short inline <code> inside prose is intentionally
+  //       left in so identifiers in a sentence are still read.
   const REMOVAL_SELECTORS = {
     infobox: ["table.infobox", ".infobox", ".sidebar", ".navbox", ".vcard"],
     table: ["table"],
     caption: ["figcaption", ".thumbcaption", ".thumb", "figure"],
     math: [".mwe-math-element", "math"],
     footnote: ["sup.reference", "sup.noprint", ".mw-ref", ".reference"],
+    code: [".mw-highlight", ".mw-code", "pre", "syntaxhighlight", ".mw-geshi"],
   };
 
   // Structural noise always removed regardless of toggles.
+  // .shortdescription is Wikipedia's hidden one-line page summary injected at
+  // the top of the article; it should never be read before the real intro.
   const ALWAYS_REMOVE = [
     ".mw-editsection",
     "style",
@@ -42,6 +50,8 @@
     ".hatnote",
     ".mw-empty-elt",
     "#coordinates",
+    ".shortdescription",
+    ".nomobile",
   ];
 
   function mergeFilters(filters) {
@@ -58,6 +68,10 @@
     if (!isElement(node)) return false;
     const el = node;
     const matches = (sel) => el.matches && el.matches(sel);
+    // Always-removed structural noise, regardless of the toggle config.
+    if (matches(".shortdescription") || matches(".hatnote") || matches(".mw-empty-elt")) {
+      return true;
+    }
     if (filters.infobox && (matches("table.infobox") || matches(".infobox") || matches(".navbox") || matches(".sidebar"))) {
       return true;
     }
@@ -66,6 +80,12 @@
       return true;
     }
     if (filters.math && matches(".mwe-math-element")) return true;
+    if (
+      filters.code &&
+      (matches(".mw-highlight") || matches(".mw-code") || matches("pre"))
+    ) {
+      return true;
+    }
     return false;
   }
 

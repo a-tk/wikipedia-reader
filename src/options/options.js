@@ -22,6 +22,7 @@
       caption: el("f-caption"),
       math: el("f-math"),
       footnote: el("f-footnote"),
+      code: el("f-code"),
     },
   };
 
@@ -84,6 +85,7 @@
         caption: controls.filters.caption.checked,
         math: controls.filters.math.checked,
         footnote: controls.filters.footnote.checked,
+        code: controls.filters.code.checked,
       },
     };
   }
