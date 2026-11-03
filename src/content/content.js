@@ -101,6 +101,20 @@
     engine.play();
   }
 
+  // Live volume change from the control-bar slider. Applies to the next spoken
+  // chunk immediately and persists the new value so it is remembered.
+  let persistTimer = null;
+  function setVolume(value) {
+    const v = Math.min(1, Math.max(0, Number(value)));
+    currentSettings.voice.volume = v;
+    if (engine) engine.applySettings({ volume: v });
+    // Debounce persistence so dragging the slider doesn't hammer storage.
+    if (settings) {
+      clearTimeout(persistTimer);
+      persistTimer = setTimeout(() => settings.save(currentSettings), 300);
+    }
+  }
+
   function voiceSettings() {
     const v = currentSettings.voice;
     let voice = null;
@@ -146,6 +160,9 @@
     skipSection() {
       engine && engine.skipSection();
     },
+    prevSection() {
+      engine && engine.prevSection();
+    },
   };
   window.WikiReader.actions = actions;
 
@@ -175,11 +192,14 @@
 
     ui = controls.mount(document, {
       sections,
+      volume: currentSettings.voice.volume,
       handlers: {
         onToggle: actions.togglePlay,
         onStop: actions.stop,
+        onPrev: actions.prevSection,
         onSkip: actions.skipSection,
         onSettings: openSettings,
+        onVolume: setVolume,
       },
     });
     wireEngine();

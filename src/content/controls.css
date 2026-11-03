@@ -54,6 +54,17 @@
   margin-left: auto;
 }
 
+#wikireader-root .wr-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+#wikireader-root .wr-volume {
+  flex: 1;
+  min-width: 0;
+}
+
 #wikireader-root .wr-section-label {
   display: block;
   margin-top: 8px;

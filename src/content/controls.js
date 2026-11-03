@@ -120,11 +120,14 @@
       .map((cb) => cb.getAttribute("data-section-id"));
   }
 
-  // Build the control bar. handlers = { onToggle, onStop, onSkip, onSettings }.
+  // Build the control bar.
+  // handlers = { onToggle, onStop, onPrev, onSkip, onSettings, onVolume }.
   // Returns helpers to reflect engine state back into the UI.
   function createControlBar(handlers, opts) {
     const h2 = opts && opts.document ? opts.document : document;
     const cb = handlers || {};
+    const initialVolume =
+      opts && typeof opts.volume === "number" ? opts.volume : 1;
 
     const playBtn = h(h2, "button", {
       class: "wr-btn wr-play",
@@ -141,6 +144,14 @@
       title: "Stop (Alt+Shift+S)",
       text: "■",
       onClick: () => cb.onStop && cb.onStop(),
+    });
+    const prevBtn = h(h2, "button", {
+      class: "wr-btn wr-prev",
+      type: "button",
+      "aria-label": "Previous section",
+      title: "Previous section (Alt+Shift+B)",
+      text: "⏮",
+      onClick: () => cb.onPrev && cb.onPrev(),
     });
     const skipBtn = h(h2, "button", {
       class: "wr-btn wr-skip",
@@ -166,7 +177,24 @@
       text: "",
     });
 
+    // Volume slider row.
+    const volumeSlider = h(h2, "input", {
+      class: "wr-volume",
+      type: "range",
+      min: "0",
+      max: "1",
+      step: "0.05",
+      "aria-label": "Volume",
+      title: "Volume",
+    });
+    volumeSlider.value = String(initialVolume);
+    volumeSlider.addEventListener("input", () => {
+      if (cb.onVolume) cb.onVolume(Number(volumeSlider.value));
+    });
+    const volumeRow = h(h2, "div", { class: "wr-volume-row" }, [volumeSlider]);
+
     const controlsRow = h(h2, "div", { class: "wr-controls-row" }, [
+      prevBtn,
       playBtn,
       stopBtn,
       skipBtn,
@@ -177,7 +205,7 @@
       class: "wr-bar",
       role: "region",
       "aria-label": "Wikipedia Reader controls",
-    }, [controlsRow, sectionLabel]);
+    }, [controlsRow, volumeRow, sectionLabel]);
 
     function setState(state) {
       root.setAttribute("data-state", state);
@@ -194,8 +222,23 @@
       sectionLabel.textContent = text || "";
     }
 
+    function setVolume(value) {
+      volumeSlider.value = String(value);
+    }
+
     setState("idle");
-    return { root, playBtn, stopBtn, skipBtn, settingsBtn, setState, setSectionLabel };
+    return {
+      root,
+      playBtn,
+      stopBtn,
+      prevBtn,
+      skipBtn,
+      settingsBtn,
+      volumeSlider,
+      setState,
+      setSectionLabel,
+      setVolume,
+    };
   }
 
   // Mount everything into the page. Returns handles and a destroy().
@@ -206,7 +249,10 @@
     const existing = d.getElementById(CONTAINER_ID);
     if (existing) existing.remove();
 
-    const bar = createControlBar(cfg.handlers, { document: d });
+    const bar = createControlBar(cfg.handlers, {
+      document: d,
+      volume: cfg.volume,
+    });
     const outline = buildOutlineList(cfg.sections, { document: d });
     const selectAll = buildSelectAll(outline, { document: d });
 

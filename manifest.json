@@ -53,6 +53,12 @@
         "default": "Alt+Shift+N"
       },
       "description": "Skip to next section"
+    },
+    "prev-section": {
+      "suggested_key": {
+        "default": "Alt+Shift+B"
+      },
+      "description": "Previous section"
     }
   }
 }

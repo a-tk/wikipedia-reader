@@ -21,7 +21,8 @@ No accounts, no API keys, no network calls — all speech uses the offline
   selected.
 - **Voice settings** — choose voice, rate, pitch, and volume. Settings persist
   across sessions and sync via your browser profile.
-- **In-page controls** — a floating bar with play/pause, stop, and next-section.
+- **In-page controls** — a floating bar with previous-section, play/pause,
+  stop, next-section, a volume slider, and a settings button.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.
 - **Section highlighting** — the section currently being read is highlighted,
   and its title is announced before its content. When the Introduction is read,
@@ -50,11 +51,12 @@ There is no build step — the extension runs the plain files in `src/` directly
 
 ### Default keyboard shortcuts
 
-| Action        | Shortcut        |
-| ------------- | --------------- |
-| Play / pause  | `Alt+Shift+P`   |
-| Stop          | `Alt+Shift+S`   |
-| Next section  | `Alt+Shift+N`   |
+| Action           | Shortcut        |
+| ---------------- | --------------- |
+| Play / pause     | `Alt+Shift+P`   |
+| Stop             | `Alt+Shift+S`   |
+| Next section     | `Alt+Shift+N`   |
+| Previous section | `Alt+Shift+B`   |
 
 Change these at `chrome://extensions/shortcuts`.
 

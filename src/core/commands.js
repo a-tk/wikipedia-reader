@@ -8,12 +8,12 @@
   root.WikiReader = root.WikiReader || {};
   root.WikiReader.commands = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  // Placeholder mapping; filled in and used by the service worker + content
-  // script in Task 7.
+  // Maps chrome.commands names to content-script action names.
   const COMMAND_ACTIONS = {
     "toggle-play": "togglePlay",
     stop: "stop",
     "skip-section": "skipSection",
+    "prev-section": "prevSection",
   };
 
   function actionForCommand(command) {

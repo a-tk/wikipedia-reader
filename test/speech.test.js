@@ -164,6 +164,30 @@ describe("SpeechEngine skipping", () => {
     expect(engine.currentItem().text).toBe("Lead two.");
   });
 
+  it("prevSection restarts the current section when partway through", () => {
+    engine.play();
+    synth.finishCurrent(); // advance to "Lead two." (still in lead, index 1)
+    expect(engine.currentItem().text).toBe("Lead two.");
+    engine.prevSection(); // partway through lead -> restart lead
+    expect(engine.currentItem().text).toBe("Lead one.");
+  });
+
+  it("prevSection jumps to the previous section when at a section start", () => {
+    engine.play();
+    engine.skipSection(); // at History (its first chunk)
+    expect(engine.currentItem().sectionId).toBe("History");
+    engine.prevSection(); // at start of History -> go to lead start
+    expect(engine.currentItem().sectionId).toBe("lead");
+    expect(engine.currentItem().text).toBe("Lead one.");
+  });
+
+  it("prevSection stays at the very beginning", () => {
+    engine.play();
+    expect(engine.currentItem().text).toBe("Lead one.");
+    engine.prevSection();
+    expect(engine.currentItem().text).toBe("Lead one.");
+  });
+
   it("skipping past the end stops playback", () => {
     const onEnd = vi.fn();
     engine.on("end", onEnd);

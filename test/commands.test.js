@@ -14,6 +14,10 @@ describe("command-to-action mapping", () => {
     expect(commands.actionForCommand("skip-section")).toBe("skipSection");
   });
 
+  it("maps prev-section to prevSection", () => {
+    expect(commands.actionForCommand("prev-section")).toBe("prevSection");
+  });
+
   it("returns null for an unknown command", () => {
     expect(commands.actionForCommand("nope")).toBe(null);
     expect(commands.actionForCommand(undefined)).toBe(null);
@@ -22,6 +26,7 @@ describe("command-to-action mapping", () => {
   it("covers exactly the commands declared in the manifest", () => {
     // Keep the mapping in sync with manifest.json's "commands" block.
     expect(Object.keys(commands.COMMAND_ACTIONS).sort()).toEqual([
+      "prev-section",
       "skip-section",
       "stop",
       "toggle-play",

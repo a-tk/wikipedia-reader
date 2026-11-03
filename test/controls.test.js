@@ -67,20 +67,44 @@ describe("createControlBar", () => {
   it("wires button clicks to handlers", () => {
     const onToggle = vi.fn();
     const onStop = vi.fn();
+    const onPrev = vi.fn();
     const onSkip = vi.fn();
     const onSettings = vi.fn();
     const bar = controls.createControlBar(
-      { onToggle, onStop, onSkip, onSettings },
+      { onToggle, onStop, onPrev, onSkip, onSettings },
       { document }
     );
     bar.playBtn.click();
     bar.stopBtn.click();
+    bar.prevBtn.click();
     bar.skipBtn.click();
     bar.settingsBtn.click();
     expect(onToggle).toHaveBeenCalledOnce();
     expect(onStop).toHaveBeenCalledOnce();
+    expect(onPrev).toHaveBeenCalledOnce();
     expect(onSkip).toHaveBeenCalledOnce();
     expect(onSettings).toHaveBeenCalledOnce();
+  });
+
+  it("provides a previous-section button", () => {
+    const bar = controls.createControlBar({}, { document });
+    expect(bar.prevBtn).toBeTruthy();
+    expect(bar.prevBtn.getAttribute("aria-label")).toBe("Previous section");
+  });
+
+  it("initializes the volume slider and fires onVolume on input", () => {
+    const onVolume = vi.fn();
+    const bar = controls.createControlBar({ onVolume }, { document, volume: 0.4 });
+    expect(Number(bar.volumeSlider.value)).toBeCloseTo(0.4);
+    bar.volumeSlider.value = "0.75";
+    bar.volumeSlider.dispatchEvent(new Event("input"));
+    expect(onVolume).toHaveBeenCalledWith(0.75);
+  });
+
+  it("setVolume updates the slider position", () => {
+    const bar = controls.createControlBar({}, { document });
+    bar.setVolume(0.2);
+    expect(Number(bar.volumeSlider.value)).toBeCloseTo(0.2);
   });
 
   it("reflects engine state into the play button", () => {

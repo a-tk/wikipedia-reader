@@ -257,6 +257,38 @@
       this._jumpTo(this.index + 1);
     }
 
+    // Go to the previous section. Media-player style: if we're past the first
+    // chunk of the current section, restart the current section; otherwise jump
+    // to the start of the preceding section.
+    prevSection() {
+      if (this.queue.length === 0) return;
+      const idx = Math.max(0, this.index);
+      const currentSection = this.queue[idx] ? this.queue[idx].sectionId : null;
+
+      // Find the first chunk index of the current section.
+      let start = idx;
+      while (start > 0 && this.queue[start - 1].sectionId === currentSection) {
+        start -= 1;
+      }
+
+      if (idx > start) {
+        // Partway through: restart the current section.
+        this._jumpTo(start);
+        return;
+      }
+      // At the start of the section: jump to the previous section's start.
+      if (start === 0) {
+        this._jumpTo(0);
+        return;
+      }
+      const prevSectionId = this.queue[start - 1].sectionId;
+      let prevStart = start - 1;
+      while (prevStart > 0 && this.queue[prevStart - 1].sectionId === prevSectionId) {
+        prevStart -= 1;
+      }
+      this._jumpTo(prevStart);
+    }
+
     _jumpTo(targetIndex) {
       if (targetIndex >= this.queue.length) {
         this.stop();
