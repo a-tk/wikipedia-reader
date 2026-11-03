@@ -101,18 +101,29 @@
     engine.play();
   }
 
+  // Debounce persistence so dragging a slider doesn't hammer storage.
+  let persistTimer = null;
+  function persistSettingsSoon() {
+    if (!settings) return;
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => settings.save(currentSettings), 300);
+  }
+
   // Live volume change from the control-bar slider. Applies to the next spoken
   // chunk immediately and persists the new value so it is remembered.
-  let persistTimer = null;
   function setVolume(value) {
     const v = Math.min(1, Math.max(0, Number(value)));
     currentSettings.voice.volume = v;
     if (engine) engine.applySettings({ volume: v });
-    // Debounce persistence so dragging the slider doesn't hammer storage.
-    if (settings) {
-      clearTimeout(persistTimer);
-      persistTimer = setTimeout(() => settings.save(currentSettings), 300);
-    }
+    persistSettingsSoon();
+  }
+
+  // Live playback-speed change from the control-bar slider.
+  function setRate(value) {
+    const r = Math.min(3, Math.max(0.5, Number(value)));
+    currentSettings.voice.rate = r;
+    if (engine) engine.applySettings({ rate: r });
+    persistSettingsSoon();
   }
 
   function voiceSettings() {
@@ -193,6 +204,7 @@
     ui = controls.mount(document, {
       sections,
       volume: currentSettings.voice.volume,
+      rate: currentSettings.voice.rate,
       handlers: {
         onToggle: actions.togglePlay,
         onStop: actions.stop,
@@ -200,6 +212,7 @@
         onSkip: actions.skipSection,
         onSettings: openSettings,
         onVolume: setVolume,
+        onRate: setRate,
       },
     });
     wireEngine();

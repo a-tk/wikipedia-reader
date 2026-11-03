@@ -68,8 +68,11 @@
     if (!isElement(node)) return false;
     const el = node;
     const matches = (sel) => el.matches && el.matches(sel);
-    // Always-removed structural noise, regardless of the toggle config.
-    if (matches(".shortdescription") || matches(".hatnote") || matches(".mw-empty-elt")) {
+    // Always-removed structural noise, regardless of the toggle config. This
+    // covers a top-level <style>/<script> (whose textContent is raw CSS/JS,
+    // e.g. the TemplateStyles blocks around blockquotes), .shortdescription,
+    // .hatnote, etc. — the same selectors stripped as descendants below.
+    if (ALWAYS_REMOVE.some((sel) => matches(sel))) {
       return true;
     }
     if (filters.infobox && (matches("table.infobox") || matches(".infobox") || matches(".navbox") || matches(".sidebar"))) {

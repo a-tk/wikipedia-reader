@@ -54,15 +54,28 @@
   margin-left: auto;
 }
 
-#wikireader-root .wr-volume-row {
+#wikireader-root .wr-slider-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
 }
-#wikireader-root .wr-volume {
+#wikireader-root .wr-slider-row input[type="range"] {
   flex: 1;
   min-width: 0;
+}
+#wikireader-root .wr-slider-end {
+  font-size: 0.72rem;
+  color: #54595d;
+  white-space: nowrap;
+  min-width: 34px;
+  text-align: center;
+}
+#wikireader-root .wr-slider-end:first-child {
+  text-align: right;
+}
+#wikireader-root .wr-slider-end:last-child {
+  text-align: left;
 }
 
 #wikireader-root .wr-section-label {
@@ -153,7 +166,8 @@
   #wikireader-root .wr-btn:hover {
     background: #303236;
   }
-  #wikireader-root .wr-section-label {
+  #wikireader-root .wr-section-label,
+  #wikireader-root .wr-slider-end {
     color: #a2a9b1;
   }
 }

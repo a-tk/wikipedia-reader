@@ -163,3 +163,45 @@ describe("filters.sectionText code blocks", () => {
     expect(filters.DEFAULT_FILTERS.code).toBe(true);
   });
 });
+
+describe("filters: top-level <style> / TemplateStyles noise", () => {
+  // Reproduces the Recursion (computer science) article bug: a <style> block
+  // (TemplateStyles) sits as a top-level content node next to a blockquote,
+  // and its raw CSS text (".mw-parser-output ...") was being read aloud.
+  let root;
+  beforeEach(() => {
+    root = loadFixture("parsoid-article.html");
+  });
+
+  it("never reads CSS text from a top-level <style> block", () => {
+    const sections = extractor.extractSections(root);
+    const lead = sections[0];
+    const text = filters.sectionText(lead.contentNodes, filters.DEFAULT_FILTERS);
+    expect(text).not.toContain("mw-parser-output");
+    expect(text).not.toContain("templatequote");
+    expect(text).not.toContain("overflow:hidden");
+    expect(text).not.toContain("{");
+  });
+
+  it("still reads the real blockquote prose next to the style block", () => {
+    const sections = extractor.extractSections(root);
+    const lead = sections[0];
+    const text = filters.sectionText(lead.contentNodes, filters.DEFAULT_FILTERS);
+    expect(text).toContain("An inspiring quotation that is real article content");
+  });
+
+  it("drops the style block even with all toggle filters off", () => {
+    const sections = extractor.extractSections(root);
+    const lead = sections[0];
+    const allOff = {
+      infobox: false,
+      table: false,
+      caption: false,
+      math: false,
+      footnote: false,
+      code: false,
+    };
+    const text = filters.sectionText(lead.contentNodes, allOff);
+    expect(text).not.toContain("mw-parser-output");
+  });
+});

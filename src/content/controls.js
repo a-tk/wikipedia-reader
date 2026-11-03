@@ -128,6 +128,39 @@
     const cb = handlers || {};
     const initialVolume =
       opts && typeof opts.volume === "number" ? opts.volume : 1;
+    const initialRate =
+      opts && typeof opts.rate === "number" ? opts.rate : 1;
+
+    // Build a labeled slider row: [min label] [slider] [max label].
+    function sliderRow(config) {
+      const slider = h(h2, "input", {
+        class: config.className,
+        type: "range",
+        min: String(config.min),
+        max: String(config.max),
+        step: String(config.step),
+        "aria-label": config.ariaLabel,
+        title: config.ariaLabel,
+      });
+      slider.value = String(config.value);
+      slider.addEventListener("input", () => {
+        if (config.onInput) config.onInput(Number(slider.value));
+      });
+      const row = h(h2, "div", { class: config.rowClass }, [
+        h(h2, "span", {
+          class: "wr-slider-end",
+          "aria-hidden": "true",
+          text: config.minLabel,
+        }),
+        slider,
+        h(h2, "span", {
+          class: "wr-slider-end",
+          "aria-hidden": "true",
+          text: config.maxLabel,
+        }),
+      ]);
+      return { slider, row };
+    }
 
     const playBtn = h(h2, "button", {
       class: "wr-btn wr-play",
@@ -177,21 +210,37 @@
       text: "",
     });
 
-    // Volume slider row.
-    const volumeSlider = h(h2, "input", {
-      class: "wr-volume",
-      type: "range",
-      min: "0",
-      max: "1",
-      step: "0.05",
-      "aria-label": "Volume",
-      title: "Volume",
+    // Volume slider row (labeled 0% .. 100%).
+    const volume = sliderRow({
+      className: "wr-volume",
+      rowClass: "wr-slider-row wr-volume-row",
+      ariaLabel: "Volume",
+      min: 0,
+      max: 1,
+      step: 0.05,
+      value: initialVolume,
+      minLabel: "0%",
+      maxLabel: "100%",
+      onInput: (v) => cb.onVolume && cb.onVolume(v),
     });
-    volumeSlider.value = String(initialVolume);
-    volumeSlider.addEventListener("input", () => {
-      if (cb.onVolume) cb.onVolume(Number(volumeSlider.value));
+    const volumeSlider = volume.slider;
+    const volumeRow = volume.row;
+
+    // Playback-speed slider row (labeled 0.5× .. 3.0×), below the volume row.
+    const rate = sliderRow({
+      className: "wr-rate",
+      rowClass: "wr-slider-row wr-rate-row",
+      ariaLabel: "Playback speed",
+      min: 0.5,
+      max: 3,
+      step: 0.1,
+      value: initialRate,
+      minLabel: "0.5\u00d7",
+      maxLabel: "3.0\u00d7",
+      onInput: (v) => cb.onRate && cb.onRate(v),
     });
-    const volumeRow = h(h2, "div", { class: "wr-volume-row" }, [volumeSlider]);
+    const rateSlider = rate.slider;
+    const rateRow = rate.row;
 
     const controlsRow = h(h2, "div", { class: "wr-controls-row" }, [
       prevBtn,
@@ -205,7 +254,7 @@
       class: "wr-bar",
       role: "region",
       "aria-label": "Wikipedia Reader controls",
-    }, [controlsRow, volumeRow, sectionLabel]);
+    }, [controlsRow, volumeRow, rateRow, sectionLabel]);
 
     function setState(state) {
       root.setAttribute("data-state", state);
@@ -226,6 +275,10 @@
       volumeSlider.value = String(value);
     }
 
+    function setRate(value) {
+      rateSlider.value = String(value);
+    }
+
     setState("idle");
     return {
       root,
@@ -235,9 +288,11 @@
       skipBtn,
       settingsBtn,
       volumeSlider,
+      rateSlider,
       setState,
       setSectionLabel,
       setVolume,
+      setRate,
     };
   }
 
@@ -252,6 +307,7 @@
     const bar = createControlBar(cfg.handlers, {
       document: d,
       volume: cfg.volume,
+      rate: cfg.rate,
     });
     const outline = buildOutlineList(cfg.sections, { document: d });
     const selectAll = buildSelectAll(outline, { document: d });
