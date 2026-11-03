@@ -1,0 +1,135 @@
+/* In-page control bar + outline panel. Scoped under #wikireader-root so it
+   does not collide with Wikipedia's own styles. */
+#wikireader-root,
+#wikireader-root * {
+  box-sizing: border-box;
+}
+
+#wikireader-root {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483000;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #202122;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+}
+
+#wikireader-root .wr-bar {
+  background: #fff;
+  border: 1px solid #c8ccd1;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+}
+
+#wikireader-root .wr-controls-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#wikireader-root .wr-btn {
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid #a2a9b1;
+  background: #f8f9fa;
+  border-radius: 6px;
+  width: 38px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#wikireader-root .wr-btn:hover {
+  background: #eaecf0;
+}
+#wikireader-root .wr-btn:focus-visible {
+  outline: 2px solid #3366cc;
+  outline-offset: 1px;
+}
+#wikireader-root .wr-settings {
+  margin-left: auto;
+}
+
+#wikireader-root .wr-section-label {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: #54595d;
+  min-height: 1.1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wikireader-root .wr-outline-panel {
+  margin-top: 10px;
+  background: #fff;
+  border: 1px solid #c8ccd1;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
+  max-height: 40vh;
+  overflow: auto;
+}
+#wikireader-root .wr-outline-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+#wikireader-root .wr-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#wikireader-root .wr-outline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.88rem;
+}
+#wikireader-root .wr-outline-row label {
+  cursor: pointer;
+}
+#wikireader-root .wr-indent-1 {
+  padding-left: 18px;
+}
+#wikireader-root .wr-indent-2 {
+  padding-left: 36px;
+}
+#wikireader-root .wr-indent-3 {
+  padding-left: 54px;
+}
+#wikireader-root .wr-indent-4 {
+  padding-left: 72px;
+}
+
+/* Highlight the section currently being read. */
+.wikireader-active-section {
+  background: rgba(255, 229, 143, 0.5);
+  border-radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  #wikireader-root .wr-bar,
+  #wikireader-root .wr-outline-panel {
+    background: #202122;
+    border-color: #43464a;
+    color: #eaecf0;
+  }
+  #wikireader-root .wr-btn {
+    background: #27292d;
+    border-color: #54595d;
+    color: #eaecf0;
+  }
+  #wikireader-root .wr-btn:hover {
+    background: #303236;
+  }
+  #wikireader-root .wr-section-label {
+    color: #a2a9b1;
+  }
+}

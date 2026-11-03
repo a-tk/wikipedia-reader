@@ -1,0 +1,201 @@
+// controls.js — builds the in-page floating control bar and the interactive
+// section outline. DOM construction is factored into functions that take data
+// and callbacks and return elements, so they can be unit tested in jsdom.
+//
+// Public surface (on WikiReader.controls):
+//   buildOutlineList(sections, opts) -> <ul> of checkboxes (all checked)
+//   collectSelectedIds(listEl)       -> string[] of checked section ids
+//   createControlBar(handlers)       -> { root, setState, setSectionLabel }
+//   mount(doc, { sections, handlers }) -> { bar, outline, destroy }
+(function (root, factory) {
+  const api = factory();
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+  root.WikiReader = root.WikiReader || {};
+  root.WikiReader.controls = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  const CONTAINER_ID = "wikireader-root";
+
+  function h(doc, tag, props, children) {
+    const el = doc.createElement(tag);
+    if (props) {
+      for (const [k, v] of Object.entries(props)) {
+        if (k === "class") el.className = v;
+        else if (k === "text") el.textContent = v;
+        else if (k.startsWith("aria") || k === "role" || k === "for" || k === "type" || k === "id" || k === "title")
+          el.setAttribute(k === "htmlFor" ? "for" : k, v);
+        else if (k.startsWith("on") && typeof v === "function")
+          el.addEventListener(k.slice(2).toLowerCase(), v);
+        else el[k] = v;
+      }
+    }
+    (children || []).forEach((c) => c != null && el.appendChild(c));
+    return el;
+  }
+
+  // Build the outline checklist. Each section becomes a checkbox row, indented
+  // by heading level, checked by default.
+  function buildOutlineList(sections, opts) {
+    const options = opts || {};
+    const doc = options.document || document;
+    const list = h(doc, "ul", {
+      class: "wr-outline-list",
+      role: "group",
+      "aria-label": "Sections to read",
+    });
+
+    (sections || []).forEach((section) => {
+      const id = section.id;
+      const inputId = `wr-sec-${id}`;
+      const checkbox = h(doc, "input", {
+        type: "checkbox",
+        id: inputId,
+        checked: true,
+      });
+      checkbox.setAttribute("data-section-id", id);
+      checkbox.checked = true;
+
+      const labelText =
+        section.level === 0 ? "Introduction" : section.headingText || "(untitled)";
+      const label = h(doc, "label", { for: inputId, text: labelText });
+
+      const indent = Math.max(0, (section.level || 0) - 2);
+      const row = h(doc, "li", {
+        class: `wr-outline-row wr-indent-${indent}`,
+      }, [checkbox, label]);
+      list.appendChild(row);
+    });
+    return list;
+  }
+
+  // Read the ids of the checked sections, in document order.
+  function collectSelectedIds(listEl) {
+    if (!listEl) return [];
+    return Array.from(listEl.querySelectorAll('input[type="checkbox"]'))
+      .filter((cb) => cb.checked)
+      .map((cb) => cb.getAttribute("data-section-id"));
+  }
+
+  // Build the control bar. handlers = { onToggle, onStop, onSkip, onSettings }.
+  // Returns helpers to reflect engine state back into the UI.
+  function createControlBar(handlers, opts) {
+    const h2 = opts && opts.document ? opts.document : document;
+    const cb = handlers || {};
+
+    const playBtn = h(h2, "button", {
+      class: "wr-btn wr-play",
+      type: "button",
+      "aria-label": "Play",
+      title: "Play / pause (Alt+Shift+P)",
+      text: "▶",
+      onClick: () => cb.onToggle && cb.onToggle(),
+    });
+    const stopBtn = h(h2, "button", {
+      class: "wr-btn wr-stop",
+      type: "button",
+      "aria-label": "Stop",
+      title: "Stop (Alt+Shift+S)",
+      text: "■",
+      onClick: () => cb.onStop && cb.onStop(),
+    });
+    const skipBtn = h(h2, "button", {
+      class: "wr-btn wr-skip",
+      type: "button",
+      "aria-label": "Next section",
+      title: "Next section (Alt+Shift+N)",
+      text: "⏭",
+      onClick: () => cb.onSkip && cb.onSkip(),
+    });
+    const settingsBtn = h(h2, "button", {
+      class: "wr-btn wr-settings",
+      type: "button",
+      "aria-label": "Settings",
+      title: "Settings",
+      text: "⚙",
+      onClick: () => cb.onSettings && cb.onSettings(),
+    });
+
+    const sectionLabel = h(h2, "span", {
+      class: "wr-section-label",
+      role: "status",
+      "aria-live": "polite",
+      text: "",
+    });
+
+    const controlsRow = h(h2, "div", { class: "wr-controls-row" }, [
+      playBtn,
+      stopBtn,
+      skipBtn,
+      settingsBtn,
+    ]);
+
+    const root = h(h2, "div", {
+      class: "wr-bar",
+      role: "region",
+      "aria-label": "Wikipedia Reader controls",
+    }, [controlsRow, sectionLabel]);
+
+    function setState(state) {
+      root.setAttribute("data-state", state);
+      if (state === "playing") {
+        playBtn.textContent = "⏸";
+        playBtn.setAttribute("aria-label", "Pause");
+      } else {
+        playBtn.textContent = "▶";
+        playBtn.setAttribute("aria-label", state === "paused" ? "Resume" : "Play");
+      }
+    }
+
+    function setSectionLabel(text) {
+      sectionLabel.textContent = text || "";
+    }
+
+    setState("idle");
+    return { root, playBtn, stopBtn, skipBtn, settingsBtn, setState, setSectionLabel };
+  }
+
+  // Mount everything into the page. Returns handles and a destroy().
+  function mount(doc, config) {
+    const d = doc || document;
+    const cfg = config || {};
+    // Remove any previous instance.
+    const existing = d.getElementById(CONTAINER_ID);
+    if (existing) existing.remove();
+
+    const bar = createControlBar(cfg.handlers, { document: d });
+    const outline = buildOutlineList(cfg.sections, { document: d });
+
+    const outlinePanel = h(d, "div", {
+      class: "wr-outline-panel",
+      role: "region",
+      "aria-label": "Choose sections to read",
+    }, [
+      h(d, "div", { class: "wr-outline-title", text: "Read these sections" }),
+      outline,
+    ]);
+
+    const container = h(d, "div", { id: CONTAINER_ID, class: "wr-container" }, [
+      bar.root,
+      outlinePanel,
+    ]);
+
+    (d.body || d.documentElement).appendChild(container);
+
+    return {
+      container,
+      bar,
+      outlineEl: outline,
+      getSelectedIds: () => collectSelectedIds(outline),
+      destroy: () => container.remove(),
+    };
+  }
+
+  return {
+    CONTAINER_ID,
+    buildOutlineList,
+    collectSelectedIds,
+    createControlBar,
+    mount,
+  };
+});

@@ -1,0 +1,154 @@
+// content.js — orchestrates extraction, the UI, and the speech engine on a
+// Wikipedia article page.
+(function () {
+  "use strict";
+
+  const WR = window.WikiReader || {};
+  const { extractor, filters, settings, controls, SpeechEngine } = WR;
+
+  // Guard: only run on article pages that actually have parser output.
+  const rootEl = document.querySelector("#mw-content-text") || document.body;
+  if (!extractor || !extractor.findParserOutput(rootEl)) {
+    return;
+  }
+
+  let sections = [];
+  let ui = null;
+  let engine = null;
+  let currentSettings = settings ? settings.DEFAULTS : null;
+
+  function sectionById(id) {
+    return sections.find((s) => s.id === id) || null;
+  }
+
+  function labelFor(section) {
+    if (!section) return "";
+    return section.level === 0 ? "Introduction" : section.headingText;
+  }
+
+  // Build the flat chunk queue for the currently selected sections.
+  function buildQueue(selectedIds) {
+    const filterCfg = currentSettings.filters;
+    const queue = [];
+    sections.forEach((section, sectionIndex) => {
+      if (!selectedIds.includes(section.id)) return;
+      // Speak the heading first (except for the lead).
+      if (section.level !== 0 && section.headingText) {
+        queue.push({
+          sectionId: section.id,
+          sectionIndex,
+          text: section.headingText + ".",
+        });
+      }
+      const chunks = filters.sectionToChunks(section.contentNodes, filterCfg);
+      chunks.forEach((text) =>
+        queue.push({ sectionId: section.id, sectionIndex, text })
+      );
+    });
+    return queue;
+  }
+
+  function highlightSection(id) {
+    document
+      .querySelectorAll(".wikireader-active-section")
+      .forEach((n) => n.classList.remove("wikireader-active-section"));
+    const section = sectionById(id);
+    if (section && section.contentNodes[0] && section.contentNodes[0].classList) {
+      section.contentNodes[0].classList.add("wikireader-active-section");
+    }
+  }
+
+  function startPlayback() {
+    const selected = ui.getSelectedIds();
+    const queue = buildQueue(selected);
+    if (queue.length === 0) {
+      ui.bar.setSectionLabel("Nothing selected to read.");
+      return;
+    }
+    engine.applySettings(voiceSettings());
+    engine.load(queue);
+    engine.play();
+  }
+
+  function voiceSettings() {
+    const v = currentSettings.voice;
+    let voice = null;
+    if (v.voiceURI && typeof speechSynthesis !== "undefined") {
+      voice = speechSynthesis.getVoices().find((x) => x.voiceURI === v.voiceURI) || null;
+    }
+    return { voice, rate: v.rate, pitch: v.pitch, volume: v.volume };
+  }
+
+  function wireEngine() {
+    engine = new SpeechEngine({});
+    engine
+      .on("section", ({ sectionId }) => {
+        const s = sectionById(sectionId);
+        ui.bar.setSectionLabel(labelFor(s));
+        highlightSection(sectionId);
+      })
+      .on("start", () => ui.bar.setState("playing"))
+      .on("resume", () => ui.bar.setState("playing"))
+      .on("pause", () => ui.bar.setState("paused"))
+      .on("stop", () => {
+        ui.bar.setState("idle");
+        ui.bar.setSectionLabel("");
+        highlightSection(null);
+      })
+      .on("end", () => {
+        ui.bar.setState("idle");
+        ui.bar.setSectionLabel("Finished.");
+        highlightSection(null);
+      });
+  }
+
+  // Actions also used by keyboard commands (Task 7).
+  const actions = {
+    togglePlay() {
+      if (!engine) return;
+      if (engine.getState() === "idle") startPlayback();
+      else engine.togglePlay();
+    },
+    stop() {
+      engine && engine.stop();
+    },
+    skipSection() {
+      engine && engine.skipSection();
+    },
+  };
+  window.WikiReader.actions = actions;
+
+  function openSettings() {
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    }
+  }
+
+  // Receive commands relayed from the service worker (Task 7).
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (!msg || msg.type !== "command") return;
+      const action = WR.commands && WR.commands.actionForCommand(msg.command);
+      if (action && actions[action]) actions[action]();
+    });
+  }
+
+  async function init() {
+    sections = extractor.extractSections(rootEl);
+    if (sections.length === 0) return;
+    if (settings) currentSettings = await settings.load();
+
+    ui = controls.mount(document, {
+      sections,
+      handlers: {
+        onToggle: actions.togglePlay,
+        onStop: actions.stop,
+        onSkip: actions.skipSection,
+        onSettings: openSettings,
+      },
+    });
+    wireEngine();
+  }
+
+  init();
+})();

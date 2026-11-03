@@ -1,0 +1,14 @@
+{
+  "name": "wikipedia-reader",
+  "version": "0.1.0",
+  "description": "Chrome extension that reads Wikipedia articles aloud using the Web Speech API.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0",
+    "vitest": "^2.0.5"
+  }
+}

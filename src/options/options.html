@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wikipedia Reader — Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Wikipedia Reader settings</h1>
+
+      <section aria-labelledby="voice-heading">
+        <h2 id="voice-heading">Voice</h2>
+
+        <div class="field">
+          <label for="voice">Voice</label>
+          <select id="voice" aria-describedby="voice-help"></select>
+          <p id="voice-help" class="help">
+            Voices come from your operating system and browser.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="rate">Rate <output id="rate-out">1.0</output>×</label>
+          <input id="rate" type="range" min="0.5" max="3" step="0.1" value="1" />
+        </div>
+
+        <div class="field">
+          <label for="pitch">Pitch <output id="pitch-out">1.0</output></label>
+          <input id="pitch" type="range" min="0" max="2" step="0.1" value="1" />
+        </div>
+
+        <div class="field">
+          <label for="volume">Volume <output id="volume-out">100</output>%</label>
+          <input id="volume" type="range" min="0" max="1" step="0.05" value="1" />
+        </div>
+
+        <button id="preview" type="button" class="secondary">Preview voice</button>
+      </section>
+
+      <section aria-labelledby="filters-heading">
+        <h2 id="filters-heading">Skip this content</h2>
+        <p class="help">
+          Checked items are skipped and not read aloud.
+        </p>
+        <label class="check"><input type="checkbox" id="f-infobox" /> Infoboxes</label>
+        <label class="check"><input type="checkbox" id="f-table" /> Tables</label>
+        <label class="check"><input type="checkbox" id="f-caption" /> Image captions</label>
+        <label class="check"><input type="checkbox" id="f-math" /> Math formulas</label>
+        <label class="check"><input type="checkbox" id="f-footnote" /> Footnote markers like [1]</label>
+      </section>
+
+      <section aria-labelledby="keys-heading">
+        <h2 id="keys-heading">Keyboard shortcuts</h2>
+        <ul class="help">
+          <li>Play / pause: <kbd>Alt+Shift+P</kbd></li>
+          <li>Stop: <kbd>Alt+Shift+S</kbd></li>
+          <li>Next section: <kbd>Alt+Shift+N</kbd></li>
+        </ul>
+        <p class="help">
+          Change these at <code>chrome://extensions/shortcuts</code>.
+        </p>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="../core/settings.js"></script>
+    <script src="../core/speech.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

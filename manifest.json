@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Wikipedia Reader",
+  "version": "0.1.0",
+  "description": "Reads Wikipedia articles aloud with the browser's built-in speech synthesis. Pick sections, filter non-prose, control with keyboard shortcuts.",
+  "permissions": ["storage"],
+  "options_page": "src/options/options.html",
+  "action": {
+    "default_title": "Wikipedia Reader",
+    "default_icon": {
+      "48": "src/icons/icon48.png",
+      "128": "src/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.wikipedia.org/wiki/*"],
+      "js": [
+        "src/core/settings.js",
+        "src/core/extractor.js",
+        "src/core/filters.js",
+        "src/core/speech.js",
+        "src/core/commands.js",
+        "src/content/controls.js",
+        "src/content/content.js"
+      ],
+      "css": ["src/content/controls.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-play": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Play / pause reading"
+    },
+    "stop": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Stop reading"
+    },
+    "skip-section": {
+      "suggested_key": {
+        "default": "Alt+Shift+N"
+      },
+      "description": "Skip to next section"
+    }
+  }
+}
