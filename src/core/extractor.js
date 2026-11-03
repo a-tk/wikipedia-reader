@@ -81,6 +81,40 @@
     return q || null;
   }
 
+  // Flatten the parser-output into an ordered stream of top-level block nodes.
+  //
+  // Parsoid output (now the default on Wikipedia) wraps each section in a
+  // <section data-mw-section-id> element, so headings are nested one level
+  // down rather than being direct children of .mw-parser-output. We descend
+  // into those <section> wrappers (and any wrapper element that contains a
+  // heading) while preserving document order, so both the legacy flat layout
+  // and the Parsoid section-wrapped layout produce the same block stream.
+  function flattenBlocks(parserOutput) {
+    const blocks = [];
+    const walk = (parent) => {
+      for (const child of Array.from(parent.children)) {
+        if (isSectionWrapper(child)) {
+          // Recurse: Parsoid nests subsection <section>s inside their parent
+          // section, so headings can be more than one level deep.
+          walk(child);
+        } else {
+          blocks.push(child);
+        }
+      }
+    };
+    walk(parserOutput);
+    return blocks;
+  }
+
+  // A <section> wrapper, or any element that is not itself a heading but
+  // directly contains one as a child (defensive against future wrapping).
+  function isSectionWrapper(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.tagName === "SECTION") return true;
+    if (headingElementFor(el)) return false; // it *is* a heading wrapper
+    return false;
+  }
+
   // Build the ordered section list. The lead section (level 0) holds content
   // that precedes the first heading; it is omitted if it has no content nodes.
   function extractSections(rootEl) {
@@ -96,7 +130,7 @@
     };
     let headingCount = 0;
 
-    const children = Array.from(parserOutput.children);
+    const children = flattenBlocks(parserOutput);
     for (const node of children) {
       const h = headingElementFor(node);
       if (h) {
@@ -137,6 +171,8 @@
     headingText,
     headingId,
     findParserOutput,
+    flattenBlocks,
+    isSectionWrapper,
     extractSections,
     extractOutline,
   };

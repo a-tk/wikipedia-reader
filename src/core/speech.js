@@ -69,7 +69,15 @@
       this.settings = { voice: null, rate: 1, pitch: 1, volume: 1 };
       this.listeners = {};
       this._keepAliveTimer = null;
+      this._gapTimer = null;
       this._current = null;
+    }
+
+    _clearGapTimer() {
+      if (this._gapTimer) {
+        clearTimeout(this._gapTimer);
+        this._gapTimer = null;
+      }
     }
 
     on(event, cb) {
@@ -91,7 +99,8 @@
       this.settings = Object.assign({}, this.settings, settings || {});
     }
 
-    // queue: array of { sectionId, sectionIndex, text }
+    // queue: array of { sectionId, sectionIndex, text, pauseAfterMs? }
+    // pauseAfterMs inserts a silent gap after the chunk before the next one.
     load(items) {
       this.stop();
       this.queue = Array.isArray(items) ? items.slice() : [];
@@ -161,7 +170,17 @@
         if (this.index >= this.queue.length) {
           this._finishAll();
         } else if (this.state === STATE.PLAYING) {
-          this._speakCurrent();
+          // Honor a requested silent gap after this chunk (e.g. the pause that
+          // follows a spoken section heading) before speaking the next one.
+          const gap = Number(item.pauseAfterMs) || 0;
+          if (gap > 0) {
+            this._gapTimer = setTimeout(() => {
+              this._gapTimer = null;
+              if (this.state === STATE.PLAYING) this._speakCurrent();
+            }, gap);
+          } else {
+            this._speakCurrent();
+          }
         }
       };
       u.onerror = (ev) => {
@@ -180,7 +199,12 @@
 
     pause() {
       if (this.state !== STATE.PLAYING) return;
+      // If we're in a post-heading silent gap, remember so resume re-speaks
+      // the pending chunk rather than relying on the synth to resume it.
+      const wasInGap = this._gapTimer != null;
+      this._clearGapTimer();
       this.state = STATE.PAUSED;
+      this._pausedInGap = wasInGap;
       if (this.synth.pause) this.synth.pause();
       this._stopKeepAlive();
       this._emit("pause", { index: this.index });
@@ -189,9 +213,15 @@
     resume() {
       if (this.state !== STATE.PAUSED) return;
       this.state = STATE.PLAYING;
-      if (this.synth.resume) this.synth.resume();
       this._startKeepAlive();
       this._emit("resume", { index: this.index });
+      if (this._pausedInGap) {
+        // The next chunk had not started speaking yet; start it now.
+        this._pausedInGap = false;
+        this._speakCurrent();
+      } else if (this.synth.resume) {
+        this.synth.resume();
+      }
     }
 
     togglePlay() {
@@ -203,6 +233,8 @@
     stop() {
       const wasActive = this.state !== STATE.IDLE;
       this.state = STATE.IDLE;
+      this._clearGapTimer();
+      this._pausedInGap = false;
       this._stopKeepAlive();
       this._current = null;
       if (this.synth && this.synth.cancel) this.synth.cancel();
@@ -232,6 +264,8 @@
         return;
       }
       const resume = this.state !== STATE.IDLE;
+      this._clearGapTimer();
+      this._pausedInGap = false;
       // Cancel current utterance without emitting a user-facing stop.
       if (this.synth && this.synth.cancel) this.synth.cancel();
       this.index = Math.max(0, targetIndex);
@@ -244,6 +278,8 @@
 
     _finishAll() {
       this.state = STATE.IDLE;
+      this._clearGapTimer();
+      this._pausedInGap = false;
       this._stopKeepAlive();
       this._current = null;
       this._emit("end", {});

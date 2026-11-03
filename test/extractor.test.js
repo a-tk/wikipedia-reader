@@ -66,3 +66,55 @@ describe("extractor", () => {
     expect(extractor.extractSections(empty)).toEqual([]);
   });
 });
+
+describe("extractor with Parsoid <section> wrappers", () => {
+  let root;
+  beforeEach(() => {
+    root = loadFixture("parsoid-article.html");
+  });
+
+  it("finds every section despite <section> wrapping", () => {
+    const outline = extractor.extractOutline(root);
+    const headings = outline.map((s) => s.headingText);
+    expect(headings).toEqual([
+      "", // lead
+      "History",
+      "Early history",
+      "Culture",
+      "References",
+    ]);
+  });
+
+  it("unwraps nested subsections (Early history inside History)", () => {
+    const outline = extractor.extractOutline(root);
+    const byText = Object.fromEntries(outline.map((s) => [s.headingText, s.level]));
+    expect(byText["History"]).toBe(2);
+    expect(byText["Early history"]).toBe(3);
+    expect(byText["Culture"]).toBe(2);
+  });
+
+  it("keeps the lead content from inside the section-0 wrapper", () => {
+    const sections = extractor.extractSections(root);
+    const lead = sections[0];
+    expect(lead.level).toBe(0);
+    const text = lead.contentNodes.map((n) => n.textContent).join(" ");
+    expect(text).toContain("example subject");
+  });
+
+  it("groups prose under the right wrapped section", () => {
+    const sections = extractor.extractSections(root);
+    const culture = sections.find((s) => s.headingText === "Culture");
+    const text = culture.contentNodes.map((n) => n.textContent).join(" ");
+    expect(text).toContain("prose about culture");
+    expect(text).not.toContain("history section");
+  });
+
+  it("flattenBlocks returns blocks in document order", () => {
+    const parserOutput = extractor.findParserOutput(root);
+    const blocks = extractor.flattenBlocks(parserOutput);
+    // No <section> wrappers should remain in the flattened stream.
+    expect(blocks.some((b) => b.tagName === "SECTION")).toBe(false);
+    // First block is the infobox table (lead content).
+    expect(blocks[0].tagName).toBe("TABLE");
+  });
+});

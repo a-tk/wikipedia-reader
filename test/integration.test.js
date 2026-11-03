@@ -15,7 +15,13 @@ function buildQueue(sections, selectedIds, filterCfg) {
   sections.forEach((section, sectionIndex) => {
     if (!selectedIds.includes(section.id)) return;
     if (section.level !== 0 && section.headingText) {
-      queue.push({ sectionId: section.id, sectionIndex, text: section.headingText + "." });
+      queue.push({
+        sectionId: section.id,
+        sectionIndex,
+        text: section.headingText + ".",
+        isHeading: true,
+        pauseAfterMs: 700,
+      });
     }
     filters
       .sectionToChunks(section.contentNodes, filterCfg)
@@ -79,29 +85,35 @@ describe("end-to-end: extract -> filter -> speak", () => {
   });
 
   it("drives the speech engine through the whole queue in order", () => {
-    const selected = ["lead", "History"];
-    const queue = buildQueue(sections, selected, settings.DEFAULTS.filters);
+    vi.useFakeTimers();
+    try {
+      const selected = ["lead", "History"];
+      const queue = buildQueue(sections, selected, settings.DEFAULTS.filters);
 
-    const synth = makeMockSynth();
-    const engine = new SpeechEngine({
-      synth,
-      createUtterance: (text) => ({ text }),
-      keepAliveMs: 0,
-    });
-    const sectionsEntered = [];
-    engine.on("section", ({ sectionId }) => sectionsEntered.push(sectionId));
+      const synth = makeMockSynth();
+      const engine = new SpeechEngine({
+        synth,
+        createUtterance: (text) => ({ text }),
+        keepAliveMs: 0,
+      });
+      const sectionsEntered = [];
+      engine.on("section", ({ sectionId }) => sectionsEntered.push(sectionId));
 
-    engine.load(queue);
-    engine.play();
-    // Drain the queue.
-    let guard = 0;
-    while (engine.getState() === "playing" && guard++ < 100) {
-      synth.finishCurrent();
+      engine.load(queue);
+      engine.play();
+      // Drain the queue, flushing any post-heading pause gaps.
+      let guard = 0;
+      while (engine.getState() === "playing" && guard++ < 100) {
+        synth.finishCurrent();
+        vi.advanceTimersByTime(1000); // release any pending gap timer
+      }
+
+      expect(engine.getState()).toBe("idle");
+      expect(synth.spoken.map((u) => u.text)).toEqual(queue.map((q) => q.text));
+      expect(sectionsEntered).toEqual(["lead", "History"]);
+    } finally {
+      vi.useRealTimers();
     }
-
-    expect(engine.getState()).toBe("idle");
-    expect(synth.spoken.map((u) => u.text)).toEqual(queue.map((q) => q.text));
-    expect(sectionsEntered).toEqual(["lead", "History"]);
   });
 
   it("respects a filter toggle change (keep tables) through the pipeline", () => {
@@ -128,5 +140,39 @@ describe("end-to-end: extract -> filter -> speak", () => {
     expect(queue[0].text).toBe("History.");
     expect(queue.length).toBeGreaterThan(1);
     ui.destroy();
+  });
+});
+
+describe("end-to-end with Parsoid section-wrapped markup", () => {
+  let sections;
+  beforeEach(() => {
+    const root = loadFixture("parsoid-article.html");
+    sections = extractor.extractSections(root);
+  });
+
+  it("lists every section including nested subsections", () => {
+    const outline = sections.map((s) => s.headingText);
+    expect(outline).toEqual(["", "History", "Early history", "Culture", "References"]);
+  });
+
+  it("announces each heading with a trailing pause before its prose", () => {
+    const selected = ["History", "Culture"];
+    const queue = buildQueue(sections, selected, settings.DEFAULTS.filters);
+
+    const historyHeading = queue.find((q) => q.text === "History.");
+    expect(historyHeading.isHeading).toBe(true);
+    expect(historyHeading.pauseAfterMs).toBeGreaterThan(0);
+
+    // Heading immediately followed in the queue by its prose chunk.
+    const hIdx = queue.indexOf(historyHeading);
+    expect(queue[hIdx + 1].text).toContain("history section");
+  });
+
+  it("reads only selected sections from the wrapped layout", () => {
+    const queue = buildQueue(sections, ["Culture"], settings.DEFAULTS.filters);
+    const all = queue.map((q) => q.text).join(" ");
+    expect(all).toContain("Culture.");
+    expect(all).toContain("prose about culture");
+    expect(all).not.toContain("history section");
   });
 });

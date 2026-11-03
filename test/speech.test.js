@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import speech from "../src/core/speech.js";
 
 const { SpeechEngine, loadVoices } = speech;
@@ -209,5 +209,57 @@ describe("loadVoices", () => {
     handlers["voiceschanged"]();
     const result = await p;
     expect(result.map((v) => v.name)).toEqual(["Late"]);
+  });
+});
+
+describe("SpeechEngine post-heading pause gap", () => {
+  let synth;
+  let engine;
+  const gapItems = [
+    { sectionId: "History", sectionIndex: 1, text: "History.", pauseAfterMs: 700 },
+    { sectionId: "History", sectionIndex: 1, text: "History prose." },
+  ];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    synth = makeMockSynth();
+    engine = makeEngine(synth);
+    engine.load(gapItems);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("delays the next chunk until the gap elapses", () => {
+    engine.play();
+    expect(synth.spoken[0].text).toBe("History.");
+    // Heading finishes; prose should NOT be spoken immediately.
+    synth.finishCurrent();
+    expect(synth.spoken.length).toBe(1);
+    // After the gap, the prose chunk is spoken.
+    vi.advanceTimersByTime(700);
+    expect(synth.spoken.length).toBe(2);
+    expect(synth.spoken[1].text).toBe("History prose.");
+  });
+
+  it("does not speak the next chunk if stopped during the gap", () => {
+    engine.play();
+    synth.finishCurrent(); // heading ends, gap timer running
+    engine.stop();
+    vi.advanceTimersByTime(700);
+    expect(synth.spoken.length).toBe(1);
+    expect(engine.getState()).toBe("idle");
+  });
+
+  it("resumes the pending chunk after pausing during the gap", () => {
+    engine.play();
+    synth.finishCurrent(); // heading ends, gap timer running
+    engine.pause();
+    vi.advanceTimersByTime(700); // timer was cleared, nothing happens
+    expect(synth.spoken.length).toBe(1);
+    engine.resume();
+    expect(synth.spoken.length).toBe(2);
+    expect(synth.spoken[1].text).toBe("History prose.");
   });
 });

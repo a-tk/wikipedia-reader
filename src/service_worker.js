@@ -7,6 +7,16 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log("[Wikipedia Reader] installed. Shortcuts configurable at chrome://extensions/shortcuts");
 });
 
+// Open the options page when the in-page settings button asks us to.
+// (Content scripts cannot call chrome.runtime.openOptionsPage directly.)
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg && msg.type === "open-options") {
+    chrome.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+  }
+  return false;
+});
+
 chrome.commands.onCommand.addListener((command) => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab = tabs && tabs[0];

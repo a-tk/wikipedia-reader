@@ -26,18 +26,24 @@
     return section.level === 0 ? "Introduction" : section.headingText;
   }
 
+  // Silence inserted after a spoken section heading, before its prose.
+  const PAUSE_AFTER_HEADING_MS = 700;
+
   // Build the flat chunk queue for the currently selected sections.
   function buildQueue(selectedIds) {
     const filterCfg = currentSettings.filters;
     const queue = [];
     sections.forEach((section, sectionIndex) => {
       if (!selectedIds.includes(section.id)) return;
-      // Speak the heading first (except for the lead).
+      // Speak the heading first (except for the lead), then pause before the
+      // section's prose so the title is clearly set off from the content.
       if (section.level !== 0 && section.headingText) {
         queue.push({
           sectionId: section.id,
           sectionIndex,
           text: section.headingText + ".",
+          isHeading: true,
+          pauseAfterMs: PAUSE_AFTER_HEADING_MS,
         });
       }
       const chunks = filters.sectionToChunks(section.contentNodes, filterCfg);
@@ -119,8 +125,12 @@
   window.WikiReader.actions = actions;
 
   function openSettings() {
-    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.openOptionsPage) {
-      chrome.runtime.openOptionsPage();
+    // openOptionsPage() is not available in a content script, so ask the
+    // service worker to open the options page on our behalf.
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ type: "open-options" }, () => {
+        void (chrome.runtime && chrome.runtime.lastError);
+      });
     }
   }
 
