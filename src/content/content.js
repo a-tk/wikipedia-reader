@@ -4,7 +4,7 @@
   "use strict";
 
   const WR = window.WikiReader || {};
-  const { extractor, filters, settings, controls, SpeechEngine } = WR;
+  const { extractor, filters, settings, controls, SpeechEngine, loadVoices } = WR;
 
   // Guard: only run on article pages that actually have parser output.
   const rootEl = document.querySelector("#mw-content-text") || document.body;
@@ -42,13 +42,20 @@
     return (clone.textContent || "").replace(/\s+/g, " ").trim();
   }
 
-  // Build the flat chunk queue for the currently selected sections.
-  function buildQueue(selectedIds) {
+  // Let the page paint/handle input between sections of heavy work.
+  const yieldToPage = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  // Build the flat chunk queue for the currently selected sections. Cloning and
+  // filtering is the expensive part on very long articles, so yield to the
+  // page between sections instead of blocking the main thread in one go.
+  async function buildQueue(selectedIds) {
     const filterCfg = currentSettings.filters;
     const title = articleTitle();
     const queue = [];
-    sections.forEach((section, sectionIndex) => {
-      if (!selectedIds.includes(section.id)) return;
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      const section = sections[sectionIndex];
+      if (!selectedIds.includes(section.id)) continue;
+      if (queue.length > 0) await yieldToPage();
       // The lead/Introduction has no heading of its own, so announce the
       // article title before it. Other sections announce their own heading.
       if (section.level === 0 && title) {
@@ -75,7 +82,7 @@
       chunks.forEach((text) =>
         queue.push({ sectionId: section.id, sectionIndex, text })
       );
-    });
+    }
     return queue;
   }
 
@@ -89,24 +96,56 @@
     }
   }
 
-  function startPlayback() {
-    const selected = ui.getSelectedIds();
-    const queue = buildQueue(selected);
-    if (queue.length === 0) {
-      ui.bar.setSectionLabel("Nothing selected to read.");
-      return;
+  let starting = false;
+  async function startPlayback() {
+    if (starting) return; // ignore repeat clicks while the queue is building
+    starting = true;
+    try {
+      const queue = await buildQueue(ui.getSelectedIds());
+      if (queue.length === 0) {
+        ui.bar.setSectionLabel("Nothing selected to read.");
+        return;
+      }
+      engine.applySettings(voiceSettings());
+      engine.load(queue);
+      engine.play();
+    } finally {
+      starting = false;
     }
-    engine.applySettings(voiceSettings());
-    engine.load(queue);
-    engine.play();
   }
 
-  // Debounce persistence so dragging a slider doesn't hammer storage.
+  // Debounce persistence so dragging a slider doesn't hammer storage. Only the
+  // slider-controlled values are written, merged onto the latest stored
+  // settings, so a stale in-memory copy can never revert voice/filter changes
+  // made on the options page.
   let persistTimer = null;
   function persistSettingsSoon() {
     if (!settings) return;
     clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => settings.save(currentSettings), 300);
+    persistTimer = setTimeout(async () => {
+      const { volume, rate } = currentSettings.voice;
+      const latest = await settings.load();
+      latest.voice.volume = volume;
+      latest.voice.rate = rate;
+      await settings.save(latest);
+      persistTimer = null;
+    }, 300);
+  }
+
+  // Pick up changes made elsewhere (the options page, another tab) so open
+  // articles use the new voice/filters without a reload.
+  function applyExternalSettings(next) {
+    const keepSliders = persistTimer !== null; // a local slider change is pending
+    const volume = keepSliders ? currentSettings.voice.volume : next.voice.volume;
+    const rate = keepSliders ? currentSettings.voice.rate : next.voice.rate;
+    currentSettings = next;
+    currentSettings.voice.volume = volume;
+    currentSettings.voice.rate = rate;
+    if (ui) {
+      ui.bar.setVolume(volume);
+      ui.bar.setRate(rate);
+    }
+    if (engine) engine.applySettings(voiceSettings());
   }
 
   // Live volume change from the control-bar slider. Applies to the next spoken
@@ -126,11 +165,33 @@
     persistSettingsSoon();
   }
 
+  // Chrome populates the voice list lazily, so a getVoices() call at click time
+  // can return [] and silently drop the user's chosen voice. Load it up front.
+  let voices = [];
+  function primeVoices() {
+    if (typeof loadVoices !== "function") return;
+    const refresh = () => {
+      if (typeof speechSynthesis !== "undefined") {
+        voices = speechSynthesis.getVoices() || voices;
+      }
+    };
+    loadVoices().then((list) => {
+      if (list && list.length) voices = list;
+    });
+    if (typeof speechSynthesis !== "undefined" && speechSynthesis.addEventListener) {
+      speechSynthesis.addEventListener("voiceschanged", refresh);
+    }
+  }
+
   function voiceSettings() {
     const v = currentSettings.voice;
     let voice = null;
-    if (v.voiceURI && typeof speechSynthesis !== "undefined") {
-      voice = speechSynthesis.getVoices().find((x) => x.voiceURI === v.voiceURI) || null;
+    if (v.voiceURI) {
+      const pool =
+        voices.length || typeof speechSynthesis === "undefined"
+          ? voices
+          : speechSynthesis.getVoices();
+      voice = pool.find((x) => x.voiceURI === v.voiceURI) || null;
     }
     return { voice, rate: v.rate, pitch: v.pitch, volume: v.volume };
   }
@@ -146,6 +207,13 @@
       .on("start", () => ui.bar.setState("playing"))
       .on("resume", () => ui.bar.setState("playing"))
       .on("pause", () => ui.bar.setState("paused"))
+      .on("error", ({ error }) => {
+        // Chrome blocks speech until the user has interacted with the page, and
+        // a keyboard shortcut does not count as page interaction.
+        if (error === "not-allowed") {
+          ui.bar.setSectionLabel("Click the page once, then press play.");
+        }
+      })
       .on("stop", () => {
         ui.bar.setState("idle");
         ui.bar.setSectionLabel("");
@@ -177,18 +245,42 @@
   };
   window.WikiReader.actions = actions;
 
-  function openSettings() {
-    // openOptionsPage() is not available in a content script, so ask the
-    // service worker to open the options page on our behalf.
-    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage({ type: "open-options" }, () => {
-        void (chrome.runtime && chrome.runtime.lastError);
-      });
+  // Content scripts can only reach chrome.* while the extension context is
+  // valid; after an extension reload/update it is orphaned and calls throw.
+  function extensionAlive() {
+    try {
+      return typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id;
+    } catch (e) {
+      return false;
     }
   }
 
-  // Receive commands relayed from the service worker (Task 7).
-  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+  async function openSettings() {
+    // openOptionsPage() is not available in a content script, so ask the
+    // service worker to open the options page on our behalf.
+    if (!extensionAlive()) {
+      ui.bar.setSectionLabel("Extension was updated — reload this page.");
+      return;
+    }
+    try {
+      await chrome.runtime.sendMessage({ type: "open-options" });
+    } catch (e) {
+      ui.bar.setSectionLabel("Extension was updated — reload this page.");
+    }
+  }
+
+  async function fetchShortcuts() {
+    if (!extensionAlive()) return {};
+    try {
+      const res = await chrome.runtime.sendMessage({ type: "get-shortcuts" });
+      return (res && res.shortcuts) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  // Receive commands relayed from the service worker.
+  if (extensionAlive() && chrome.runtime.onMessage) {
     chrome.runtime.onMessage.addListener((msg) => {
       if (!msg || msg.type !== "command") return;
       const action = WR.commands && WR.commands.actionForCommand(msg.command);
@@ -196,10 +288,21 @@
     });
   }
 
+  // Live-update from the options page.
+  if (extensionAlive() && chrome.storage && chrome.storage.onChanged && settings) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      const change = changes[settings.STORAGE_KEY];
+      if (area === "sync" && change) {
+        applyExternalSettings(settings.normalize(change.newValue));
+      }
+    });
+  }
+
   async function init() {
     sections = extractor.extractSections(rootEl);
     if (sections.length === 0) return;
     if (settings) currentSettings = await settings.load();
+    primeVoices();
 
     ui = controls.mount(document, {
       sections,
@@ -216,6 +319,7 @@
       },
     });
     wireEngine();
+    ui.bar.setShortcuts(await fetchShortcuts());
   }
 
   init();

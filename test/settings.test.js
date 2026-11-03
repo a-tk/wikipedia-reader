@@ -1,18 +1,17 @@
 import { describe, it, expect } from "vitest";
 import settings from "../src/core/settings.js";
 
-// Mock chrome.storage.sync using the callback style.
+// Mock chrome.storage.sync using the promise style (MV3).
 function makeMockStorage(initial) {
   let store = initial ? { [settings.STORAGE_KEY]: initial } : {};
   return {
     store,
-    get(query, cb) {
+    async get(query) {
       const key = Object.keys(query)[0];
-      cb({ [key]: store[key] !== undefined ? store[key] : query[key] });
+      return { [key]: store[key] !== undefined ? store[key] : query[key] };
     },
-    set(obj, cb) {
+    async set(obj) {
       Object.assign(store, obj);
-      cb();
     },
   };
 }
@@ -95,5 +94,16 @@ describe("settings.load / save", () => {
   it("falls back to defaults when no storage is available", async () => {
     const s = await settings.load(null);
     expect(s).toEqual(settings.DEFAULTS);
+  });
+
+  it("falls back to defaults when storage.get rejects", async () => {
+    const storage = { get: async () => { throw new Error("context invalidated"); } };
+    expect(await settings.load(storage)).toEqual(settings.DEFAULTS);
+  });
+
+  it("save resolves even when storage.set rejects", async () => {
+    const storage = { set: async () => { throw new Error("context invalidated"); } };
+    const s = await settings.save({ voice: { rate: 2 } }, storage);
+    expect(s.voice.rate).toBe(2);
   });
 });

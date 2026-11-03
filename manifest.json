@@ -1,18 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Wikipedia Reader",
+  "name": "Audio for Wikipedia",
   "version": "0.1.0",
   "description": "Reads Wikipedia articles aloud with the browser's built-in speech synthesis. Pick sections, filter non-prose, control with keyboard shortcuts.",
   "permissions": ["storage"],
   "options_page": "src/options/options.html",
   "action": {
-    "default_title": "Wikipedia Reader",
+    "default_title": "Audio for Wikipedia",
     "default_icon": {
+      "16": "src/icons/icon16.png",
+      "32": "src/icons/icon32.png",
       "48": "src/icons/icon48.png",
       "128": "src/icons/icon128.png"
     }
   },
   "icons": {
+    "16": "src/icons/icon16.png",
+    "32": "src/icons/icon32.png",
     "48": "src/icons/icon48.png",
     "128": "src/icons/icon128.png"
   },
@@ -21,7 +25,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.wikipedia.org/wiki/*"],
+      "matches": ["https://*.wikipedia.org/wiki/*"],
       "js": [
         "src/core/settings.js",
         "src/core/extractor.js",
@@ -56,7 +60,7 @@
     },
     "prev-section": {
       "suggested_key": {
-        "default": "Alt+Shift+B"
+        "default": "Alt+Shift+Comma"
       },
       "description": "Previous section"
     }

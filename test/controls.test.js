@@ -249,3 +249,36 @@ describe("mount select-all integration", () => {
     ui.destroy();
   });
 });
+
+describe("control bar: collapse and shortcut tooltips", () => {
+  it("collapse button toggles state, label and aria-expanded", () => {
+    const seen = [];
+    const bar = controls.createControlBar({ onCollapse: (c) => seen.push(c) });
+    expect(bar.root.getAttribute("data-collapsed")).toBe("false");
+    bar.collapseBtn.click();
+    expect(bar.root.getAttribute("data-collapsed")).toBe("true");
+    expect(bar.collapseBtn.getAttribute("aria-expanded")).toBe("false");
+    expect(bar.collapseBtn.getAttribute("aria-label")).toBe("Expand controls");
+    bar.collapseBtn.click();
+    expect(bar.root.getAttribute("data-collapsed")).toBe("false");
+    expect(seen).toEqual([true, false]);
+  });
+
+  it("mount() mirrors the collapsed state onto the container", () => {
+    document.body.innerHTML = "";
+    const ui = controls.mount(document, { sections: [], handlers: {} });
+    ui.bar.collapseBtn.click();
+    expect(ui.container.getAttribute("data-collapsed")).toBe("true");
+    ui.destroy();
+  });
+
+  it("tooltips show the current shortcut and update via setShortcuts", () => {
+    const bar = controls.createControlBar({}, { shortcuts: { "toggle-play": "Alt+Shift+P" } });
+    expect(bar.playBtn.getAttribute("title")).toBe("Play / pause (Alt+Shift+P)");
+    expect(bar.stopBtn.getAttribute("title")).toBe("Stop"); // no shortcut bound
+    bar.setShortcuts({ stop: "Ctrl+Shift+X" });
+    expect(bar.stopBtn.getAttribute("title")).toBe("Stop (Ctrl+Shift+X)");
+    expect(bar.playBtn.getAttribute("title")).toBe("Play / pause");
+  });
+});
+

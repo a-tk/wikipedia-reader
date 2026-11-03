@@ -5,7 +5,7 @@
 // Public surface (on WikiReader.controls):
 //   buildOutlineList(sections, opts) -> <ul> of checkboxes (all checked)
 //   collectSelectedIds(listEl)       -> string[] of checked section ids
-//   createControlBar(handlers)       -> { root, setState, setSectionLabel }
+//   createControlBar(handlers)       -> { root, setState, setSectionLabel, setShortcuts }
 //   mount(doc, { sections, handlers }) -> { bar, outline, destroy }
 (function (root, factory) {
   const api = factory();
@@ -121,7 +121,8 @@
   }
 
   // Build the control bar.
-  // handlers = { onToggle, onStop, onPrev, onSkip, onSettings, onVolume }.
+  // handlers = { onToggle, onStop, onPrev, onSkip, onSettings, onVolume, onRate,
+  // onCollapse }. opts.shortcuts maps command name -> current shortcut text.
   // Returns helpers to reflect engine state back into the UI.
   function createControlBar(handlers, opts) {
     const h2 = opts && opts.document ? opts.document : document;
@@ -130,6 +131,21 @@
       opts && typeof opts.volume === "number" ? opts.volume : 1;
     const initialRate =
       opts && typeof opts.rate === "number" ? opts.rate : 1;
+
+    // Tooltips show the user's *current* shortcuts (they can rebind them at
+    // chrome://extensions/shortcuts), so they are rebuilt from a lookup.
+    const TIPS = {
+      "toggle-play": ["Play / pause"],
+      stop: ["Stop"],
+      "prev-section": ["Previous section"],
+      "skip-section": ["Next section"],
+    };
+    const tipButtons = {};
+    function tipText(command, shortcuts) {
+      const label = TIPS[command][0];
+      const key = shortcuts && shortcuts[command];
+      return key ? `${label} (${key})` : label;
+    }
 
     // Build a labeled slider row: [min label] [slider] [max label].
     function sliderRow(config) {
@@ -166,7 +182,7 @@
       class: "wr-btn wr-play",
       type: "button",
       "aria-label": "Play",
-      title: "Play / pause (Alt+Shift+P)",
+      title: tipText("toggle-play", opts && opts.shortcuts),
       text: "▶",
       onClick: () => cb.onToggle && cb.onToggle(),
     });
@@ -174,7 +190,7 @@
       class: "wr-btn wr-stop",
       type: "button",
       "aria-label": "Stop",
-      title: "Stop (Alt+Shift+S)",
+      title: tipText("stop", opts && opts.shortcuts),
       text: "■",
       onClick: () => cb.onStop && cb.onStop(),
     });
@@ -182,7 +198,7 @@
       class: "wr-btn wr-prev",
       type: "button",
       "aria-label": "Previous section",
-      title: "Previous section (Alt+Shift+B)",
+      title: tipText("prev-section", opts && opts.shortcuts),
       text: "⏮",
       onClick: () => cb.onPrev && cb.onPrev(),
     });
@@ -190,7 +206,7 @@
       class: "wr-btn wr-skip",
       type: "button",
       "aria-label": "Next section",
-      title: "Next section (Alt+Shift+N)",
+      title: tipText("skip-section", opts && opts.shortcuts),
       text: "⏭",
       onClick: () => cb.onSkip && cb.onSkip(),
     });
@@ -201,6 +217,16 @@
       title: "Settings",
       text: "⚙",
       onClick: () => cb.onSettings && cb.onSettings(),
+    });
+
+    const collapseBtn = h(h2, "button", {
+      class: "wr-btn wr-collapse",
+      type: "button",
+      "aria-label": "Collapse controls",
+      "aria-expanded": "true",
+      title: "Collapse / expand",
+      text: "▾",
+      onClick: () => setCollapsed(root.getAttribute("data-collapsed") !== "true"),
     });
 
     const sectionLabel = h(h2, "span", {
@@ -248,12 +274,13 @@
       stopBtn,
       skipBtn,
       settingsBtn,
+      collapseBtn,
     ]);
 
     const root = h(h2, "div", {
       class: "wr-bar",
       role: "region",
-      "aria-label": "Wikipedia Reader controls",
+      "aria-label": "Audio for Wikipedia controls",
     }, [controlsRow, volumeRow, rateRow, sectionLabel]);
 
     function setState(state) {
@@ -264,6 +291,31 @@
       } else {
         playBtn.textContent = "▶";
         playBtn.setAttribute("aria-label", state === "paused" ? "Resume" : "Play");
+      }
+    }
+
+    // Collapsing hides the sliders, status text and (via the container) the
+    // section list, leaving just the button row so the page stays readable.
+    function setCollapsed(collapsed, silent) {
+      root.setAttribute("data-collapsed", collapsed ? "true" : "false");
+      collapseBtn.textContent = collapsed ? "▴" : "▾";
+      collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      collapseBtn.setAttribute(
+        "aria-label",
+        collapsed ? "Expand controls" : "Collapse controls"
+      );
+      if (!silent && cb.onCollapse) cb.onCollapse(collapsed);
+    }
+
+    function setShortcuts(shortcuts) {
+      const map = {
+        "toggle-play": playBtn,
+        stop: stopBtn,
+        "prev-section": prevBtn,
+        "skip-section": skipBtn,
+      };
+      for (const [command, btn] of Object.entries(map)) {
+        btn.setAttribute("title", tipText(command, shortcuts));
       }
     }
 
@@ -280,6 +332,7 @@
     }
 
     setState("idle");
+    setCollapsed(false, true);
     return {
       root,
       playBtn,
@@ -287,12 +340,15 @@
       prevBtn,
       skipBtn,
       settingsBtn,
+      collapseBtn,
       volumeSlider,
       rateSlider,
       setState,
       setSectionLabel,
       setVolume,
       setRate,
+      setCollapsed,
+      setShortcuts,
     };
   }
 
@@ -304,10 +360,18 @@
     const existing = d.getElementById(CONTAINER_ID);
     if (existing) existing.remove();
 
-    const bar = createControlBar(cfg.handlers, {
+    let container = null;
+    const handlers = Object.assign({}, cfg.handlers, {
+      onCollapse: (collapsed) => {
+        if (container) container.setAttribute("data-collapsed", String(collapsed));
+        if (cfg.handlers && cfg.handlers.onCollapse) cfg.handlers.onCollapse(collapsed);
+      },
+    });
+    const bar = createControlBar(handlers, {
       document: d,
       volume: cfg.volume,
       rate: cfg.rate,
+      shortcuts: cfg.shortcuts,
     });
     const outline = buildOutlineList(cfg.sections, { document: d });
     const selectAll = buildSelectAll(outline, { document: d });
@@ -322,7 +386,7 @@
       outline,
     ]);
 
-    const container = h(d, "div", { id: CONTAINER_ID, class: "wr-container" }, [
+    container = h(d, "div", { id: CONTAINER_ID, class: "wr-container" }, [
       bar.root,
       outlinePanel,
     ]);

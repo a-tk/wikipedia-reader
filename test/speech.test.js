@@ -149,6 +149,50 @@ describe("SpeechEngine skipping", () => {
     engine.load(items);
   });
 
+  it("ignores the cancelled utterance's late onend/onerror after a skip", () => {
+    engine.play();
+    const old = synth.spoken[0];
+    engine.skipSection(); // now speaking "History one."
+    expect(synth.spoken.length).toBe(2);
+    old.onend({}); // Chrome fires this asynchronously after cancel()
+    old.onerror({ error: "canceled" });
+    expect(synth.spoken.length).toBe(2); // nothing extra spoken
+    expect(engine.currentItem().text).toBe("History one.");
+  });
+
+  it("ignores a stale onerror after stop() then play()", () => {
+    engine.play();
+    const old = synth.spoken[0];
+    engine.stop();
+    engine.play();
+    old.onerror({ error: "interrupted" });
+    expect(synth.spoken.length).toBe(2);
+    expect(engine.currentItem().text).toBe("Lead one.");
+  });
+
+  it("stops instead of burning the queue on a not-allowed error", () => {
+    const errors = [];
+    engine.on("error", (e) => errors.push(e.error));
+    engine.play();
+    synth.spoken[0].onerror({ error: "not-allowed" });
+    expect(errors).toEqual(["not-allowed"]);
+    expect(engine.getState()).toBe("idle");
+    expect(synth.spoken.length).toBe(1);
+  });
+
+  it("skipping while paused un-pauses the synth and reports resume", () => {
+    const events = [];
+    engine.on("resume", () => events.push("resume"));
+    engine.play();
+    engine.pause();
+    const resumesBefore = synth.resumeCalls;
+    engine.skipSection();
+    expect(engine.getState()).toBe("playing");
+    expect(synth.resumeCalls).toBe(resumesBefore + 1);
+    expect(events).toEqual(["resume"]);
+    expect(synth.spoken[synth.spoken.length - 1].text).toBe("History one.");
+  });
+
   it("skipSection jumps to the next section's first chunk", () => {
     engine.play();
     expect(engine.currentItem().text).toBe("Lead one.");

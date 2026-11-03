@@ -1,12 +1,18 @@
-# Wikipedia Reader
+# Audio for Wikipedia
 
 A Chrome / Chromium browser extension (Manifest V3) that reads Wikipedia
 articles aloud using the browser's built-in speech synthesis. Pick which
 sections to read, filter out non-prose content, and control playback from
 in-page buttons or the keyboard.
 
-No accounts, no API keys, no network calls — all speech uses the offline
-`speechSynthesis` Web Speech API that ships with your browser.
+No accounts, no API keys, and the extension makes no network requests of its
+own. Speech uses the browser's built-in `speechSynthesis` Web Speech API.
+Note that some voices are provided by an online service: in Chrome, the
+"Google …" voices send the text being read to Google to be synthesized. Choose
+a voice supplied by your operating system if you want everything to stay on
+your device. See [PRIVACY.md](PRIVACY.md).
+
+Not affiliated with or endorsed by the Wikimedia Foundation.
 
 ## Features
 
@@ -23,7 +29,10 @@ No accounts, no API keys, no network calls — all speech uses the offline
   across sessions and sync via your browser profile.
 - **In-page controls** — a floating bar with previous-section, play/pause,
   stop, next-section, a volume slider (0%–100%), a playback-speed slider
-  (0.5×–3.0×), and a settings button. Slider changes apply live and are saved.
+  (0.5×–3.0×), a settings button, and a collapse button that tucks the panel
+  away so it doesn't cover the article. Slider changes apply live and are
+  saved; settings changed on the options page apply to open articles
+  immediately. Clicking the toolbar icon toggles play/pause on an article.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.
 - **Section highlighting** — the section currently being read is highlighted,
   and its title is announced before its content. When the Introduction is read,
@@ -57,9 +66,14 @@ There is no build step — the extension runs the plain files in `src/` directly
 | Play / pause     | `Alt+Shift+P`   |
 | Stop             | `Alt+Shift+S`   |
 | Next section     | `Alt+Shift+N`   |
-| Previous section | `Alt+Shift+B`   |
+| Previous section | `Alt+Shift+,`   |
 
-Change these at `chrome://extensions/shortcuts`.
+Change these at `chrome://extensions/shortcuts`. Chrome may refuse to assign a
+default that collides with one of its own shortcuts; the options page and the
+button tooltips always show the shortcuts that are actually active.
+
+If a shortcut does nothing the very first time, click anywhere on the article
+once — Chrome only allows speech after you have interacted with the page.
 
 ## Settings
 
@@ -80,7 +94,7 @@ entry in `chrome://extensions`.
 ```
 manifest.json            MV3 manifest (content scripts, commands, options)
 src/
-  service_worker.js      Relays keyboard commands to the active tab
+  service_worker.js      Relays shortcuts / toolbar clicks to the active tab
   core/
     extractor.js         DOM -> ordered section outline (pure)
     filters.js           Strip non-prose + chunk into sentences (pure)
@@ -93,7 +107,10 @@ src/
     controls.css         Control bar styles
   options/
     options.html/js/css  Settings page
+scripts/package.sh       Builds the Web Store zip (manifest + src only)
 test/                    Vitest unit + integration tests (not shipped)
+PRIVACY.md               Privacy policy
+CHROMEWEBSTORE.md        Store listing copy, permission justifications, checklist
 ```
 
 ## How it works
@@ -116,6 +133,7 @@ tests are not part of the shipped extension.
 ```bash
 npm install
 npm test
+npm run package   # -> dist/audio-for-wikipedia-<version>.zip
 ```
 
 The core modules use a small UMD-style wrapper so the same source works both as
@@ -127,7 +145,7 @@ step.
 
 - Voice quality depends on the voices installed in your operating system and
   browser.
-- The extension runs on `*.wikipedia.org/wiki/*` article pages.
+- The extension runs on `https://*.wikipedia.org/wiki/*` article pages.
 - Sibling-language Wikimedia sites (Wiktionary, etc.) are not matched by default;
   add their host patterns to `manifest.json` if you want them.
 

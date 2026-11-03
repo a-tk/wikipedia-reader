@@ -99,7 +99,7 @@
     if (typeof speechSynthesis === "undefined") return;
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(
-      "This is a preview of the selected Wikipedia Reader voice."
+      "This is a preview of the selected Audio for Wikipedia voice."
     );
     const chosen = controls.voice.value;
     if (chosen) {
@@ -128,11 +128,33 @@
     }
   }
 
+  // Show the shortcuts as currently bound (users can rebind them).
+  async function renderShortcuts() {
+    const list = el("shortcut-list");
+    if (!list || typeof chrome === "undefined" || !chrome.commands) return;
+    try {
+      const commands = await chrome.commands.getAll();
+      list.textContent = "";
+      commands.forEach((c) => {
+        if (!c.description) return;
+        const li = document.createElement("li");
+        li.append(`${c.description}: `);
+        const kbd = document.createElement("kbd");
+        kbd.textContent = c.shortcut || "not set";
+        li.append(kbd);
+        list.append(li);
+      });
+    } catch (e) {
+      /* leave the list empty */
+    }
+  }
+
   async function init() {
     const settings = await S.load();
     renderFromSettings(settings);
     await populateVoices();
     wire();
+    renderShortcuts();
   }
 
   if (document.readyState === "loading") {

@@ -71,6 +71,9 @@
       this._keepAliveTimer = null;
       this._gapTimer = null;
       this._current = null;
+      // Bumped whenever a new utterance is spoken or playback is cancelled, so
+      // late onend/onerror events from a cancelled utterance can be ignored.
+      this._gen = 0;
     }
 
     _clearGapTimer() {
@@ -149,6 +152,7 @@
       }
       this._current = item;
 
+      const gen = ++this._gen;
       const u = this.createUtterance(item.text);
       if (this.settings.voice) u.voice = this.settings.voice;
       u.rate = this.settings.rate;
@@ -156,6 +160,7 @@
       u.volume = this.settings.volume;
 
       u.onboundary = (ev) => {
+        if (gen !== this._gen) return;
         this._emit("boundary", {
           index: this.index,
           charIndex: ev && ev.charIndex,
@@ -163,8 +168,9 @@
         });
       };
       u.onend = () => {
-        // Ignore stale end events fired after a stop().
-        if (this.state === STATE.IDLE) return;
+        // Ignore stale end events from an utterance that was cancelled (stop,
+        // skip, or jump) — otherwise the queue would advance twice.
+        if (gen !== this._gen || this.state === STATE.IDLE) return;
         this._emit("chunkend", { index: this.index, item });
         this.index += 1;
         if (this.index >= this.queue.length) {
@@ -184,7 +190,14 @@
         }
       };
       u.onerror = (ev) => {
-        this._emit("error", { index: this.index, error: ev && ev.error });
+        if (gen !== this._gen) return;
+        // "not-allowed" (no user activation yet) would fail every remaining
+        // chunk; stop instead of racing through the whole queue. Stop first so
+        // the error listener's message isn't cleared by the "stop" event.
+        const error = ev && ev.error;
+        if (error === "not-allowed") this.stop();
+        this._emit("error", { index: this.index, error });
+        if (error === "not-allowed") return;
         // Advance past the failed chunk so one bad chunk can't wedge playback.
         if (this.state === STATE.PLAYING) {
           this.index += 1;
@@ -233,6 +246,7 @@
     stop() {
       const wasActive = this.state !== STATE.IDLE;
       this.state = STATE.IDLE;
+      this._gen += 1;
       this._clearGapTimer();
       this._pausedInGap = false;
       this._stopKeepAlive();
@@ -295,14 +309,24 @@
         this._finishAll();
         return;
       }
+      const wasPaused = this.state === STATE.PAUSED;
       const resume = this.state !== STATE.IDLE;
       this._clearGapTimer();
       this._pausedInGap = false;
+      // Invalidate the utterance being cancelled so its late onend/onerror
+      // cannot advance the queue a second time.
+      this._gen += 1;
       // Cancel current utterance without emitting a user-facing stop.
       if (this.synth && this.synth.cancel) this.synth.cancel();
       this.index = Math.max(0, targetIndex);
       if (resume) {
         this.state = STATE.PLAYING;
+        // The synth stays paused across cancel(); un-pause it so the jump is
+        // audible, and tell listeners we are playing again.
+        if (wasPaused) {
+          if (this.synth && this.synth.resume) this.synth.resume();
+          this._emit("resume", { index: this.index });
+        }
         this._speakCurrent();
         this._startKeepAlive();
       }
@@ -310,6 +334,7 @@
 
     _finishAll() {
       this.state = STATE.IDLE;
+      this._gen += 1;
       this._clearGapTimer();
       this._pausedInGap = false;
       this._stopKeepAlive();

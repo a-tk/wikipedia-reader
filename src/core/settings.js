@@ -88,43 +88,30 @@
     return null;
   }
 
-  // Promise-based get that works with both callback and promise chrome APIs.
-  function load(storage) {
+  // Load settings. Never rejects: any storage failure yields the defaults.
+  async function load(storage) {
     const s = getStorage(storage);
-    return new Promise((resolve) => {
-      if (!s) return resolve(normalize(null));
-      try {
-        const maybe = s.get({ [STORAGE_KEY]: null }, (result) => {
-          resolve(normalize(result && result[STORAGE_KEY]));
-        });
-        // Some polyfills return a promise instead of using the callback.
-        if (maybe && typeof maybe.then === "function") {
-          maybe.then((result) =>
-            resolve(normalize(result && result[STORAGE_KEY]))
-          );
-        }
-      } catch (e) {
-        resolve(normalize(null));
-      }
-    });
+    if (!s) return normalize(null);
+    try {
+      const result = await s.get({ [STORAGE_KEY]: null });
+      return normalize(result && result[STORAGE_KEY]);
+    } catch (e) {
+      return normalize(null);
+    }
   }
 
-  function save(partial, storage) {
+  // Persist settings. Never rejects (e.g. when the extension context was
+  // invalidated by a reload); resolves with the normalized value either way.
+  async function save(partial, storage) {
     const s = getStorage(storage);
     const normalized = normalize(partial);
-    return new Promise((resolve) => {
-      if (!s) return resolve(normalized);
-      try {
-        const maybe = s.set({ [STORAGE_KEY]: normalized }, () =>
-          resolve(normalized)
-        );
-        if (maybe && typeof maybe.then === "function") {
-          maybe.then(() => resolve(normalized));
-        }
-      } catch (e) {
-        resolve(normalized);
-      }
-    });
+    if (!s) return normalized;
+    try {
+      await s.set({ [STORAGE_KEY]: normalized });
+    } catch (e) {
+      /* ignore: settings simply won't persist */
+    }
+    return normalized;
   }
 
   return {

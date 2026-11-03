@@ -145,6 +145,20 @@
   padding-left: 72px;
 }
 
+/* Collapsed: keep only the button row. */
+#wikireader-root .wr-bar[data-collapsed="true"] .wr-slider-row,
+#wikireader-root .wr-bar[data-collapsed="true"] .wr-section-label,
+#wikireader-root[data-collapsed="true"] .wr-outline-panel {
+  display: none;
+}
+
+/* Never print the reader UI. */
+@media print {
+  #wikireader-root {
+    display: none !important;
+  }
+}
+
 /* Highlight the section currently being read. */
 .wikireader-active-section {
   background: rgba(255, 229, 143, 0.5);
