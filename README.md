@@ -22,7 +22,8 @@ No accounts, no API keys, no network calls — all speech uses the offline
 - **Voice settings** — choose voice, rate, pitch, and volume. Settings persist
   across sessions and sync via your browser profile.
 - **In-page controls** — a floating bar with previous-section, play/pause,
-  stop, next-section, a volume slider, and a settings button.
+  stop, next-section, a volume slider (0%–100%), a playback-speed slider
+  (0.5×–3.0×), and a settings button. Slider changes apply live and are saved.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.
 - **Section highlighting** — the section currently being read is highlighted,
   and its title is announced before its content. When the Introduction is read,

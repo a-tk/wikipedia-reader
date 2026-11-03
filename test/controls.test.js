@@ -107,6 +107,38 @@ describe("createControlBar", () => {
     expect(Number(bar.volumeSlider.value)).toBeCloseTo(0.2);
   });
 
+  it("initializes the rate slider and fires onRate on input", () => {
+    const onRate = vi.fn();
+    const bar = controls.createControlBar({ onRate }, { document, rate: 1.5 });
+    expect(Number(bar.rateSlider.value)).toBeCloseTo(1.5);
+    expect(bar.rateSlider.min).toBe("0.5");
+    expect(bar.rateSlider.max).toBe("3");
+    bar.rateSlider.value = "2";
+    bar.rateSlider.dispatchEvent(new Event("input"));
+    expect(onRate).toHaveBeenCalledWith(2);
+  });
+
+  it("setRate updates the rate slider position", () => {
+    const bar = controls.createControlBar({}, { document });
+    bar.setRate(2.5);
+    expect(Number(bar.rateSlider.value)).toBeCloseTo(2.5);
+  });
+
+  it("labels both slider ends with type-appropriate units", () => {
+    const bar = controls.createControlBar({}, { document });
+    const volEnds = bar.volumeSlider.parentElement.querySelectorAll(".wr-slider-end");
+    expect([volEnds[0].textContent, volEnds[1].textContent]).toEqual(["0%", "100%"]);
+    const rateEnds = bar.rateSlider.parentElement.querySelectorAll(".wr-slider-end");
+    expect([rateEnds[0].textContent, rateEnds[1].textContent]).toEqual(["0.5\u00d7", "3.0\u00d7"]);
+  });
+
+  it("places the rate row after the volume row", () => {
+    const bar = controls.createControlBar({}, { document });
+    const rows = bar.root.querySelectorAll(".wr-slider-row");
+    expect(rows[0].classList.contains("wr-volume-row")).toBe(true);
+    expect(rows[1].classList.contains("wr-rate-row")).toBe(true);
+  });
+
   it("reflects engine state into the play button", () => {
     const bar = controls.createControlBar({}, { document });
     bar.setState("playing");
