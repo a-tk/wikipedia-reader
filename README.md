@@ -24,7 +24,8 @@ No accounts, no API keys, no network calls — all speech uses the offline
 - **In-page controls** — a floating bar with play/pause, stop, and next-section.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.
 - **Section highlighting** — the section currently being read is highlighted,
-  and its title is announced before its content.
+  and its title is announced before its content. When the Introduction is read,
+  the article title is announced first.
 
 ## Install (unpacked)
 

@@ -29,12 +29,37 @@
   // Silence inserted after a spoken section heading, before its prose.
   const PAUSE_AFTER_HEADING_MS = 700;
 
+  // The article title, read before the Introduction. Prefer the main-title
+  // span (modern skins) and fall back to #firstHeading's text, stripping any
+  // parenthetical disambiguation marker Wikipedia adds for screen readers.
+  function articleTitle() {
+    const h1 = document.querySelector("#firstHeading, .mw-first-heading, h1.firstHeading");
+    if (!h1) return "";
+    const main = h1.querySelector(".mw-page-title-main");
+    const source = main || h1;
+    const clone = source.cloneNode(true);
+    clone.querySelectorAll(".mw-editsection, sup.reference").forEach((n) => n.remove());
+    return (clone.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
   // Build the flat chunk queue for the currently selected sections.
   function buildQueue(selectedIds) {
     const filterCfg = currentSettings.filters;
+    const title = articleTitle();
     const queue = [];
     sections.forEach((section, sectionIndex) => {
       if (!selectedIds.includes(section.id)) return;
+      // The lead/Introduction has no heading of its own, so announce the
+      // article title before it. Other sections announce their own heading.
+      if (section.level === 0 && title) {
+        queue.push({
+          sectionId: section.id,
+          sectionIndex,
+          text: title + ".",
+          isHeading: true,
+          pauseAfterMs: PAUSE_AFTER_HEADING_MS,
+        });
+      }
       // Speak the heading first (except for the lead), then pause before the
       // section's prose so the title is clearly set off from the content.
       if (section.level !== 0 && section.headingText) {

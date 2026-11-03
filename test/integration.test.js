@@ -8,12 +8,22 @@ import { loadFixture } from "./helpers/loadFixture.js";
 
 const { SpeechEngine } = speech;
 
-// Reproduces the queue-building the content script performs: speak each
-// selected section's heading, then its filtered sentence chunks, in order.
-function buildQueue(sections, selectedIds, filterCfg) {
+// Reproduces the queue-building the content script performs: announce the
+// article title before the lead, each other section's heading before its
+// prose, then the filtered sentence chunks, in order.
+function buildQueue(sections, selectedIds, filterCfg, title) {
   const queue = [];
   sections.forEach((section, sectionIndex) => {
     if (!selectedIds.includes(section.id)) return;
+    if (section.level === 0 && title) {
+      queue.push({
+        sectionId: section.id,
+        sectionIndex,
+        text: title + ".",
+        isHeading: true,
+        pauseAfterMs: 700,
+      });
+    }
     if (section.level !== 0 && section.headingText) {
       queue.push({
         sectionId: section.id,
@@ -174,5 +184,35 @@ describe("end-to-end with Parsoid section-wrapped markup", () => {
     expect(all).toContain("Culture.");
     expect(all).toContain("prose about culture");
     expect(all).not.toContain("history section");
+  });
+});
+
+describe("article title before the Introduction", () => {
+  let sections;
+  beforeEach(() => {
+    const root = loadFixture("sample-article.html");
+    sections = extractor.extractSections(root);
+  });
+
+  it("reads the title first, then the lead prose", () => {
+    const queue = buildQueue(sections, ["lead"], settings.DEFAULTS.filters, "Tail call");
+    expect(queue[0].text).toBe("Tail call.");
+    expect(queue[0].isHeading).toBe(true);
+    expect(queue[0].pauseAfterMs).toBeGreaterThan(0);
+    expect(queue[0].sectionId).toBe("lead");
+    // The real intro prose follows the title.
+    expect(queue[1].text).toContain("example subject");
+  });
+
+  it("does not read the title when the lead is not selected", () => {
+    const queue = buildQueue(sections, ["History"], settings.DEFAULTS.filters, "Tail call");
+    const all = queue.map((q) => q.text).join(" ");
+    expect(all).not.toContain("Tail call.");
+    expect(queue[0].text).toBe("History.");
+  });
+
+  it("omits the title chunk when no title is available", () => {
+    const queue = buildQueue(sections, ["lead"], settings.DEFAULTS.filters, "");
+    expect(queue[0].text).toContain("example subject");
   });
 });
