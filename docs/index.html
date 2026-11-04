@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio for Wikipedia</title>
+    <meta name="description" content="A browser extension that reads Wikipedia articles aloud, with section selection, content filters, and sentence highlighting." />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <a class="name" href="./">Audio for Wikipedia</a>
+        <nav aria-label="Site">
+          <a href="./" aria-current="page">Home</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="https://github.com/a-tk/wikipedia-reader">Source</a>
+        </nav>
+      </header>
+
+      <main>
+        <h1>Audio for Wikipedia</h1>
+        <p class="lede">
+          Listen to Wikipedia articles instead of reading them. A small control bar
+          appears on every article; press play and it reads the article aloud, section
+          by section.
+        </p>
+
+        <h2>Features</h2>
+        <ul>
+          <li><strong>Choose sections.</strong> Tick exactly which sections to read.</li>
+          <li>
+            <strong>Skip what doesn&rsquo;t sound good aloud.</strong> Infoboxes, tables,
+            image captions, math, footnote markers like [1], and code &mdash; each can be
+            switched on or off.
+          </li>
+          <li>
+            <strong>Follow along.</strong> The sentence being read is highlighted and the
+            page scrolls to keep it in view.
+          </li>
+          <li>
+            <strong>Full control.</strong> Play, pause, stop, and jump between sections
+            from the control bar, the keyboard, or the toolbar button. Adjust volume and
+            speed (0.5&times; to 3&times;) while you listen.
+          </li>
+          <li>
+            <strong>Your voice.</strong> Uses the voices already in your browser, with
+            a preview in settings.
+          </li>
+        </ul>
+
+        <h2>Keyboard shortcuts</h2>
+        <ul>
+          <li>Play / pause: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></li>
+          <li>Stop: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></li>
+          <li>Next section: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></li>
+          <li>Previous section: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd></li>
+        </ul>
+        <p>You can change these at <code>chrome://extensions/shortcuts</code>.</p>
+
+        <h2>Privacy</h2>
+        <p>
+          No accounts, no analytics, no tracking, and no server. Your settings stay in
+          your browser. Read the full <a href="privacy.html">privacy policy</a>.
+        </p>
+        <p class="note">
+          Some browser voices, such as Chrome&rsquo;s &ldquo;Google&rdquo; voices, are
+          online voices that send the text being read to the voice provider. Choose a
+          voice from your operating system to keep everything on your device.
+        </p>
+
+        <h2>Install</h2>
+        <p>
+          The source and instructions for loading the extension in Chrome, Edge, or
+          Brave are on <a href="https://github.com/a-tk/wikipedia-reader">GitHub</a>.
+        </p>
+      </main>
+
+      <footer class="site">
+        Audio for Wikipedia is an independent project and is not affiliated with or
+        endorsed by the Wikimedia Foundation.
+      </footer>
+    </div>
+  </body>
+</html>

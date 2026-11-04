@@ -10,7 +10,7 @@ own. Speech uses the browser's built-in `speechSynthesis` Web Speech API.
 Note that some voices are provided by an online service: in Chrome, the
 "Google …" voices send the text being read to Google to be synthesized. Choose
 a voice supplied by your operating system if you want everything to stay on
-your device. See [PRIVACY.md](PRIVACY.md).
+your device. See the [privacy policy](https://a-tk.github.io/wikipedia-reader/privacy.html).
 
 Not affiliated with or endorsed by the Wikimedia Foundation.
 
@@ -118,7 +118,8 @@ src/
     options.html/js/css  Settings page
 scripts/package.sh       Builds the Web Store zip (manifest + src only)
 test/                    Vitest unit + integration tests (not shipped)
-PRIVACY.md               Privacy policy
+docs/                    GitHub Pages site (home page + privacy policy)
+PRIVACY.md               Pointer to the hosted privacy policy
 CHROMEWEBSTORE.md        Store listing copy, permission justifications, checklist
 ```
 

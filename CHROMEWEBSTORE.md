@@ -103,7 +103,9 @@ Preferences (voice, speed, filters) are stored in `chrome.storage.sync` and are 
 ## Privacy Policy
 
 **Privacy Policy URL** [REQUIRED]
-TODO: host `PRIVACY.md` at a public URL (e.g. the GitHub repo or GitHub Pages) and paste it here. Fill in the contact email in the policy first.
+https://a-tk.github.io/wikipedia-reader/privacy.html
+
+Source: `docs/privacy.html`, served by GitHub Pages (Settings → Pages → Deploy from branch → `master` / `/docs`). The URL must be live before submitting, and the policy must keep matching the data disclosures above. If the repository is renamed or moved, update this URL.
 
 ## Distribution
 
@@ -116,7 +118,7 @@ TODO: host `PRIVACY.md` at a public URL (e.g. the GitHub repo or GitHub Pages) a
 TODO
 
 **Contact Email** [REQUIRED]
-TODO (shown publicly on the listing)
+TODO (shown publicly on the listing). The privacy page's contact is the GitHub issues page, so no email is published there.
 
 **Support URL / Email** [RECOMMENDED]
 TODO (e.g. GitHub Issues)
@@ -137,7 +139,7 @@ TODO (e.g. GitHub Issues)
 ### Pre-publish checklist
 - [ ] Shorten manifest `description` to ≤ 132 characters
 - [ ] Add screenshots (1280×800)
-- [ ] Fill in contact email in PRIVACY.md and host it; add URL above
+- [ ] Enable GitHub Pages (`master` / `/docs`) and confirm the privacy URL above loads
 - [ ] Fill in publisher name, contact and support info
 - [ ] `npm test` passes, then `npm run package` and upload `dist/audio-for-wikipedia-<version>.zip`
 - [ ] Bump `version` in manifest.json (and package.json) for every re-upload
