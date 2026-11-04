@@ -53,4 +53,15 @@ describe("manifest.json", () => {
     const suggested = Object.values(manifest.commands).filter((c) => c.suggested_key);
     expect(suggested.length).toBeLessThanOrEqual(4);
   });
+
+  it("loads the new modules in dependency order", () => {
+    const js = manifest.content_scripts[0].js;
+    const at = (f) => js.indexOf(f);
+    expect(at("src/core/filters.js")).toBeGreaterThanOrEqual(0);
+    expect(at("src/core/locator.js")).toBeGreaterThan(at("src/core/filters.js"));
+    expect(at("src/content/highlighter.js")).toBeGreaterThanOrEqual(0);
+    expect(at("src/content/content.js")).toBe(js.length - 1);
+    expect(at("src/content/highlighter.js")).toBeLessThan(at("src/content/content.js"));
+  });
 });
+

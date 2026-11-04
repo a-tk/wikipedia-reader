@@ -339,3 +339,51 @@ describe("filters.chunkIntoSentences: no lost text", () => {
     expect(chunks).toEqual(["It ended in 2012.", "2013 was quieter for everyone."]);
   });
 });
+
+describe("filters: <code> nodes (not the .mw-code class)", () => {
+  function nodesFor(html) {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return Array.from(div.children);
+  }
+
+  it("drops inline <code> elements when the code filter is on", () => {
+    const nodes = nodesFor("<p>Types include <code>byte</code> and <code>int64</code> values.</p>");
+    expect(filters.sectionText(nodes, filters.DEFAULT_FILTERS)).toBe("Types include and values.");
+  });
+
+  it("drops <code class=\"mw-code\"> too, because it is a <code> element", () => {
+    const nodes = nodesFor('<p>Use <code class="mw-code mw-script">struct</code> here.</p>');
+    expect(filters.sectionText(nodes, filters.DEFAULT_FILTERS)).toBe("Use here.");
+  });
+
+  it("keeps <code> text when the code filter is off", () => {
+    const nodes = nodesFor("<p>Types include <code>byte</code> values.</p>");
+    expect(filters.sectionText(nodes, { ...filters.DEFAULT_FILTERS, code: false })).toBe(
+      "Types include byte values."
+    );
+  });
+
+  it("no longer removes non-code elements that merely have the .mw-code class", () => {
+    const nodes = nodesFor('<p>Plain <span class="mw-code">prose in a span</span> stays.</p>');
+    expect(filters.sectionText(nodes, filters.DEFAULT_FILTERS)).toBe("Plain prose in a span stays.");
+  });
+
+  it("drops a top-level <code> node", () => {
+    const nodes = nodesFor("<code>top level snippet</code><p>Prose remains here.</p>");
+    expect(filters.sectionText(nodes, filters.DEFAULT_FILTERS)).toBe("Prose remains here.");
+  });
+});
+
+describe("filters.cleanClone", () => {
+  it("cleans a clone in place and returns it", () => {
+    const div = document.createElement("div");
+    div.innerHTML = '<p>Keep<sup class="reference">[1]</sup></p>';
+    const clone = div.cloneNode(true);
+    const out = filters.cleanClone(clone, filters.DEFAULT_FILTERS);
+    expect(out).toBe(clone);
+    expect(clone.querySelector("sup")).toBeNull();
+    expect(div.querySelector("sup")).not.toBeNull(); // original untouched
+  });
+});
+

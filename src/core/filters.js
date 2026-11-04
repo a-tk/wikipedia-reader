@@ -30,17 +30,17 @@
   };
 
   // Selectors removed from a cloned subtree, keyed by filter category.
-  // code: syntax-highlighted blocks (SyntaxHighlight extension -> .mw-highlight)
-  //       and preformatted/source blocks, which on Wikipedia are code or
-  //       console output. Short inline <code> inside prose is intentionally
-  //       left in so identifiers in a sentence are still read.
+  // code: syntax-highlighted blocks (SyntaxHighlight extension -> .mw-highlight),
+  //       preformatted/source blocks (<pre>), and <code> elements. We match the
+  //       <code> tag itself, not the .mw-code class, which Wikipedia also puts
+  //       on markup that is not code.
   const REMOVAL_SELECTORS = {
     infobox: ["table.infobox", ".infobox", ".sidebar", ".navbox", ".vcard"],
     table: ["table"],
     caption: ["figcaption", ".thumbcaption", ".thumb", "figure"],
     math: [".mwe-math-element", "math"],
     footnote: ["sup.reference", "sup.noprint", ".mw-ref", ".reference"],
-    code: [".mw-highlight", ".mw-code", "pre", "syntaxhighlight", ".mw-geshi"],
+    code: [".mw-highlight", "pre", "code", "syntaxhighlight", ".mw-geshi"],
   };
 
   // Structural noise always removed regardless of toggles.
@@ -67,6 +67,11 @@
   const ITEM_BREAK = "\uE000";
   const ITEM_START = "\uE001";
   const MARKERS = /[\uE000\uE001]/g;
+
+  // Bracketed footnote markers that survive as plain text: "[1]", "[12]",
+  // "[a]", "[citation needed]". Shared with the locator so both agree on which
+  // characters are never spoken.
+  const FOOTNOTE_TEXT_RE = /\[\s*(?:\d+|[a-z]|citation needed|note \d+)\s*\]/gi;
 
   function mergeFilters(filters) {
     return Object.assign({}, DEFAULT_FILTERS, filters || {});
@@ -99,16 +104,15 @@
     if (filters.math && matches(".mwe-math-element")) return true;
     if (
       filters.code &&
-      (matches(".mw-highlight") || matches(".mw-code") || matches("pre"))
+      (matches(".mw-highlight") || matches("pre") || matches("code"))
     ) {
       return true;
     }
     return false;
   }
 
-  // Clone a node and strip disallowed descendants per the filter config.
-  function cleanNode(node, filters) {
-    const clone = node.cloneNode(true);
+  // Strip disallowed descendants from an already-cloned node, in place.
+  function cleanClone(clone, filters) {
     if (!isElement(clone)) return clone;
 
     const selectors = [...ALWAYS_REMOVE];
@@ -120,6 +124,11 @@
       clone.querySelectorAll(sel).forEach((n) => n.remove());
     });
     return clone;
+  }
+
+  // Clone a node and strip disallowed descendants per the filter config.
+  function cleanNode(node, filters) {
+    return cleanClone(node.cloneNode(true), filters);
   }
 
   // Extract text from the surviving content nodes of one section, keeping an
@@ -149,7 +158,7 @@
     // Remove any bracketed footnote markers that slipped through as plain text
     // (e.g. "[1]", "[12]", "[a]", "[citation needed]").
     if (f.footnote) {
-      joined = joined.replace(/\[\s*(?:\d+|[a-z]|citation needed|note \d+)\s*\]/gi, "");
+      joined = joined.replace(FOOTNOTE_TEXT_RE, "");
     }
     return normalizeWhitespace(joined);
   }
@@ -282,6 +291,8 @@
     mergeFilters,
     nodeIsFilteredOut,
     cleanNode,
+    cleanClone,
+    FOOTNOTE_TEXT_RE,
     sectionText,
     normalizeWhitespace,
     chunkIntoSentences,

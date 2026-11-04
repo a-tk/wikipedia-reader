@@ -20,7 +20,7 @@ Not affiliated with or endorsed by the Wikimedia Foundation.
 - **Per-article section picker** — before you press play, tick exactly which
   headings/sections get read. Everything is selected by default.
 - **Content filters** — skip infoboxes, tables, image captions, math formulas,
-  inline footnote markers like `[1]`, and programming examples / code blocks.
+  inline footnote markers like `[1]`, and code (code blocks and inline code).
   Toggle each category in settings.
 - **Select all / none** — a master checkbox in the section list toggles every
   section at once, and shows a mixed (indeterminate) state when only some are
@@ -37,9 +37,12 @@ Not affiliated with or endorsed by the Wikimedia Foundation.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.
 - **Natural list reading** — a short pause follows each bullet or numbered list
   item (and a parent item before its sub-list), so lists don't run together.
-- **Section highlighting** — the section currently being read is highlighted,
-  and its title is announced before its content. When the Introduction is read,
-  the article title is announced first.
+- **Sentence highlighting** — the sentence being read is highlighted on the
+  page, and the page scrolls to keep it in view (it backs off for a few seconds
+  whenever you scroll yourself). Spoken headings and the article title are
+  highlighted too. Both behaviours can be switched off in settings; with
+  highlighting off, the section being read is highlighted instead. The title is
+  announced before the Introduction and each section's heading before its text.
 
 ## Install (unpacked)
 
@@ -86,11 +89,12 @@ entry in `chrome://extensions`.
 - **Voice / Rate / Pitch / Volume** — standard speech controls, with a
   **Preview voice** button.
 - **Skip this content** — checkboxes for infoboxes, tables, image captions,
-  math formulas, footnote markers, and programming examples / code blocks.
-  Checked means "skip, don't read". Code filtering targets syntax-highlighted
-  blocks (e.g. the examples under "Syntactic form" on the
-  [Tail call](https://en.wikipedia.org/wiki/Tail_call) article) and
-  preformatted blocks; short inline code inside a sentence is still read.
+  math formulas, footnote markers, and code. Checked means "skip, don't read".
+  The code filter removes syntax-highlighted blocks (e.g. the examples under
+  "Syntactic form" on the [Tail call](https://en.wikipedia.org/wiki/Tail_call)
+  article), preformatted blocks, and every `<code>` element — including short
+  inline code inside a sentence. Untick it to have code read aloud.
+- **While reading** — highlight the sentence being read, and scroll to follow it.
 
 ## Project structure
 
@@ -101,12 +105,14 @@ src/
   core/
     extractor.js         DOM -> ordered section outline (pure)
     filters.js           Strip non-prose + chunk into sentences (pure)
+    locator.js           Map spoken sentences back to the live page (pure)
     speech.js            speechSynthesis queue engine
     settings.js          Load/save settings via chrome.storage.sync
     commands.js          Command -> action mapping
   content/
     content.js           Orchestrates extract -> UI -> speak
     controls.js          Floating control bar + outline checklist
+    highlighter.js       Sentence highlight (CSS Custom Highlight API) + follow-scroll
     controls.css         Control bar styles
   options/
     options.html/js/css  Settings page
@@ -123,6 +129,12 @@ content script; the service worker exists only to forward keyboard commands to
 the active tab. Long articles are split into short sentence-sized chunks and
 spoken as a managed queue, with a periodic `pause()`/`resume()` keep-alive to
 work around Chromium stalling long speech queues.
+
+Sentence highlighting works without touching the article's markup: each spoken
+sentence is traced back to its exact position in the page (skipping the
+footnotes, tables and code that were filtered out of the speech) and styled
+with the browser's CSS Custom Highlight API (Chrome 105+). If a sentence can't
+be located, or the browser lacks the API, the section is highlighted instead.
 
 The extension parses the live article DOM, handling both the legacy
 (`<h2><span class="mw-headline">`) and newer Parsoid

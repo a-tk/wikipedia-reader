@@ -30,9 +30,11 @@
         "src/core/settings.js",
         "src/core/extractor.js",
         "src/core/filters.js",
+        "src/core/locator.js",
         "src/core/speech.js",
         "src/core/commands.js",
         "src/content/controls.js",
+        "src/content/highlighter.js",
         "src/content/content.js"
       ],
       "css": ["src/content/controls.css"],

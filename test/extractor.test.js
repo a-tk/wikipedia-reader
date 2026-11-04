@@ -118,3 +118,17 @@ describe("extractor with Parsoid <section> wrappers", () => {
     expect(blocks[0].tagName).toBe("TABLE");
   });
 });
+
+describe("extractor: headingEl", () => {
+  it("keeps the live heading element on each non-lead section", () => {
+    const root = loadFixture("sample-article.html");
+    const sections = extractor.extractSections(root);
+    const lead = sections.find((s) => s.level === 0);
+    expect(lead.headingEl).toBeUndefined();
+    sections.filter((s) => s.level !== 0).forEach((s) => {
+      expect(s.headingEl.tagName).toMatch(/^H[2-6]$/);
+      expect(root.contains(s.headingEl)).toBe(true); // a live node, not a copy
+    });
+  });
+});
+

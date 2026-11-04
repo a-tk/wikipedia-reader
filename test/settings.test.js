@@ -107,3 +107,30 @@ describe("settings.load / save", () => {
     expect(s.voice.rate).toBe(2);
   });
 });
+
+describe("settings.display", () => {
+  it("defaults both display options to on", () => {
+    expect(settings.DEFAULTS.display).toEqual({ highlight: true, follow: true });
+    expect(settings.normalize(null).display).toEqual({ highlight: true, follow: true });
+  });
+
+  it("preserves explicit values and fills missing ones", () => {
+    const s = settings.normalize({ display: { highlight: false } });
+    expect(s.display.highlight).toBe(false);
+    expect(s.display.follow).toBe(true);
+  });
+
+  it("migrates settings saved before display existed", () => {
+    const s = settings.normalize({ voice: { rate: 1.5 }, filters: { math: false } });
+    expect(s.display).toEqual({ highlight: true, follow: true });
+    expect(s.voice.rate).toBe(1.5);
+  });
+
+  it("round-trips through save/load", async () => {
+    const storage = makeMockStorage(null);
+    await settings.save({ display: { highlight: false, follow: false } }, storage);
+    const s = await settings.load(storage);
+    expect(s.display).toEqual({ highlight: false, follow: false });
+  });
+});
+

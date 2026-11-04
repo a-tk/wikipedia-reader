@@ -2,7 +2,8 @@
 //
 // Given the Wikipedia parser-output root, produce an ordered list of
 // sections. Each section is:
-//   { id, headingText, level (2..6 | 0 for lead), contentNodes: Element[] }
+//   { id, headingText, level (2..6 | 0 for lead), contentNodes: Element[],
+//     headingEl?: Element }   (headingEl is absent on the lead section)
 //
 // Heading detection is defensive because the markup differs by skin:
 //   - Parsoid / Vector 2022:
@@ -144,6 +145,7 @@
           headingText: headingText(h),
           level: levelFromHeading(h),
           contentNodes: [],
+          headingEl: h, // live <hN>, used to highlight the spoken heading
         };
       } else {
         current.contentNodes.push(node);

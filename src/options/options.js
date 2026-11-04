@@ -24,6 +24,10 @@
       footnote: el("f-footnote"),
       code: el("f-code"),
     },
+    display: {
+      highlight: el("d-highlight"),
+      follow: el("d-follow"),
+    },
   };
 
   let current = S.DEFAULTS;
@@ -68,6 +72,9 @@
     Object.keys(controls.filters).forEach((k) => {
       controls.filters[k].checked = settings.filters[k];
     });
+    Object.keys(controls.display).forEach((k) => {
+      controls.display[k].checked = settings.display[k];
+    });
     renderOutputs();
   }
 
@@ -86,6 +93,10 @@
         math: controls.filters.math.checked,
         footnote: controls.filters.footnote.checked,
         code: controls.filters.code.checked,
+      },
+      display: {
+        highlight: controls.display.highlight.checked,
+        follow: controls.display.follow.checked,
       },
     };
   }
@@ -119,6 +130,9 @@
     });
     controls.voice.addEventListener("change", persist);
     Object.values(controls.filters).forEach((c) =>
+      c.addEventListener("change", persist)
+    );
+    Object.values(controls.display).forEach((c) =>
       c.addEventListener("change", persist)
     );
     controls.preview.addEventListener("click", preview);

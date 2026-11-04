@@ -2,7 +2,8 @@
 //
 // Settings are split into two groups:
 //   voice   — { voiceURI, rate, pitch, volume }
-//   filters — { infobox, table, caption, math, footnote } booleans
+//   filters — { infobox, table, caption, math, footnote, code } booleans
+//   display — { highlight, follow } booleans (sentence highlight, auto-scroll)
 //
 // The storage layer is dependency-injected (defaults to chrome.storage.sync)
 // so it can be unit tested with a mock.
@@ -28,6 +29,10 @@
       math: true,
       footnote: true,
       code: true,
+    },
+    display: {
+      highlight: true, // highlight the sentence being read
+      follow: true, // scroll the page to keep that sentence in view
     },
   };
 
@@ -57,6 +62,7 @@
     const s = stored && typeof stored === "object" ? stored : {};
     const v = s.voice && typeof s.voice === "object" ? s.voice : {};
     const f = s.filters && typeof s.filters === "object" ? s.filters : {};
+    const d = s.display && typeof s.display === "object" ? s.display : {};
     return {
       voice: {
         voiceURI:
@@ -72,6 +78,10 @@
         math: asBool(f.math, DEFAULTS.filters.math),
         footnote: asBool(f.footnote, DEFAULTS.filters.footnote),
         code: asBool(f.code, DEFAULTS.filters.code),
+      },
+      display: {
+        highlight: asBool(d.highlight, DEFAULTS.display.highlight),
+        follow: asBool(d.follow, DEFAULTS.display.follow),
       },
     };
   }

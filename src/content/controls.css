@@ -169,13 +169,26 @@
   }
 }
 
-/* Highlight the section currently being read. */
+/* The sentence currently being read (CSS Custom Highlight API; see
+   highlighter.js). Both colours are set so text stays readable whatever theme
+   the page is using. */
+::highlight(wr-sentence) {
+  background-color: #fde68a;
+  color: #1f1f1f;
+}
+
+/* Fallback: highlight the whole section being read when the sentence cannot
+   be highlighted. */
 .wikireader-active-section {
   background: rgba(255, 229, 143, 0.5);
   border-radius: 3px;
 }
 
 @media (prefers-color-scheme: dark) {
+  ::highlight(wr-sentence) {
+    background-color: #7a5c00;
+    color: #ffffff;
+  }
   #wikireader-root .wr-bar,
   #wikireader-root .wr-outline-panel {
     background: #202122;

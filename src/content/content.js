@@ -4,7 +4,9 @@
   "use strict";
 
   const WR = window.WikiReader || {};
-  const { extractor, filters, settings, controls, SpeechEngine, loadVoices } = WR;
+  const {
+    extractor, filters, settings, controls, SpeechEngine, loadVoices, locator, highlighter,
+  } = WR;
 
   // Guard: only run on article pages that actually have parser output.
   const rootEl = document.querySelector("#mw-content-text") || document.body;
@@ -15,6 +17,8 @@
   let sections = [];
   let ui = null;
   let engine = null;
+  let hl = null; // sentence highlighter (null until init)
+  let activeSectionId = null; // section currently being read
   let currentSettings = settings ? settings.DEFAULTS : null;
 
   function sectionById(id) {
@@ -29,14 +33,19 @@
   // Silence inserted after a spoken section heading, before its prose.
   const PAUSE_AFTER_HEADING_MS = 700;
 
-  // The article title, read before the Introduction. Prefer the main-title
-  // span (modern skins) and fall back to #firstHeading's text, stripping any
+  // The element holding the article title: the main-title span on modern skins,
+  // else the <h1> itself.
+  function titleElement() {
+    const h1 = document.querySelector("#firstHeading, .mw-first-heading, h1.firstHeading");
+    if (!h1) return null;
+    return h1.querySelector(".mw-page-title-main") || h1;
+  }
+
+  // The article title, read before the Introduction, stripping any
   // parenthetical disambiguation marker Wikipedia adds for screen readers.
   function articleTitle() {
-    const h1 = document.querySelector("#firstHeading, .mw-first-heading, h1.firstHeading");
-    if (!h1) return "";
-    const main = h1.querySelector(".mw-page-title-main");
-    const source = main || h1;
+    const source = titleElement();
+    if (!source) return "";
     const clone = source.cloneNode(true);
     clone.querySelectorAll(".mw-editsection, sup.reference").forEach((n) => n.remove());
     return (clone.textContent || "").replace(/\s+/g, " ").trim();
@@ -51,6 +60,9 @@
   async function buildQueue(selectedIds) {
     const filterCfg = currentSettings.filters;
     const title = articleTitle();
+    const titleEl = titleElement();
+    // Only pay for locating sentences in the page if they can be highlighted.
+    const canLocate = !!(hl && hl.supported && locator);
     const queue = [];
     for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       const section = sections[sectionIndex];
@@ -65,6 +77,7 @@
           text: title + ".",
           isHeading: true,
           pauseAfterMs: PAUSE_AFTER_HEADING_MS,
+          loc: canLocate && titleEl ? { el: titleEl } : null,
         });
       }
       // Speak the heading first (except for the lead), then pause before the
@@ -76,14 +89,24 @@
           text: section.headingText + ".",
           isHeading: true,
           pauseAfterMs: PAUSE_AFTER_HEADING_MS,
+          loc: canLocate && section.headingEl ? { el: section.headingEl } : null,
         });
       }
       // List items carry a short pauseAfterMs so each item is audibly separate.
-      filters
-        .sectionToItems(section.contentNodes, filterCfg)
-        .forEach((item) =>
-          queue.push({ sectionId: section.id, sectionIndex, ...item })
-        );
+      const items = filters.sectionToItems(section.contentNodes, filterCfg);
+      // Map each sentence back to its place in the live page (in speaking
+      // order) so it can be highlighted while it is read.
+      const finder = canLocate
+        ? locator.createLocator(section.contentNodes, filterCfg, { filters })
+        : null;
+      items.forEach((item) =>
+        queue.push({
+          sectionId: section.id,
+          sectionIndex,
+          ...item,
+          loc: finder ? finder.locate(item.text) : null,
+        })
+      );
     }
     return queue;
   }
@@ -148,6 +171,16 @@
       ui.bar.setRate(rate);
     }
     if (engine) engine.applySettings(voiceSettings());
+    applyDisplaySettings();
+  }
+
+  function applyDisplaySettings() {
+    if (hl) {
+      hl.setOptions({
+        enabled: currentSettings.display.highlight,
+        follow: currentSettings.display.follow,
+      });
+    }
   }
 
   // Live volume change from the control-bar slider. Applies to the next spoken
@@ -198,13 +231,25 @@
     return { voice, rate: v.rate, pitch: v.pitch, volume: v.volume };
   }
 
+  function clearHighlights() {
+    if (hl) hl.clear();
+    highlightSection(null);
+    activeSectionId = null;
+  }
+
   function wireEngine() {
     engine = new SpeechEngine({});
     engine
       .on("section", ({ sectionId }) => {
-        const s = sectionById(sectionId);
-        ui.bar.setSectionLabel(labelFor(s));
-        highlightSection(sectionId);
+        activeSectionId = sectionId;
+        ui.bar.setSectionLabel(labelFor(sectionById(sectionId)));
+      })
+      .on("chunkstart", ({ item }) => {
+        // Highlight the sentence being read. If it can't be (unsupported
+        // browser, highlight turned off, text not found), fall back to the
+        // coarser whole-section highlight.
+        const shown = hl ? hl.show(item && item.loc) : false;
+        highlightSection(shown ? null : activeSectionId);
       })
       .on("start", () => ui.bar.setState("playing"))
       .on("resume", () => ui.bar.setState("playing"))
@@ -219,12 +264,12 @@
       .on("stop", () => {
         ui.bar.setState("idle");
         ui.bar.setSectionLabel("");
-        highlightSection(null);
+        clearHighlights();
       })
       .on("end", () => {
         ui.bar.setState("idle");
         ui.bar.setSectionLabel("Finished.");
-        highlightSection(null);
+        clearHighlights();
       });
   }
 
@@ -305,6 +350,12 @@
     if (sections.length === 0) return;
     if (settings) currentSettings = await settings.load();
     primeVoices();
+    if (highlighter) {
+      hl = highlighter.createHighlighter({
+        enabled: currentSettings.display.highlight,
+        follow: currentSettings.display.follow,
+      });
+    }
 
     ui = controls.mount(document, {
       sections,

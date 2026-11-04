@@ -20,8 +20,9 @@ Audio for Wikipedia adds a small control bar to every Wikipedia article. Press p
 
 Features
 Choose exactly which sections to read with a checklist — everything is selected by default, and "Select all" toggles the lot.
-Skip what doesn't sound good read aloud: infoboxes, tables, image captions, math formulas, footnote markers like [1], and code blocks. Each can be turned on or off in settings.
-Hear the article title before the introduction and each section's heading before its text. The section being read is highlighted on the page.
+Skip what doesn't sound good read aloud: infoboxes, tables, image captions, math formulas, footnote markers like [1], and code. Each can be turned on or off in settings.
+Follow along: the sentence being read is highlighted on the page and the page scrolls to keep it in view. Both can be turned off in settings.
+Hear the article title before the introduction and each section's heading before its text.
 Play, pause, stop, and jump to the next or previous section from the control bar, the keyboard, or the toolbar button.
 Adjust volume and playback speed (0.5× to 3×) while listening. Pick your voice and pitch in settings and preview them.
 Collapse the control bar when you want it out of the way.
@@ -57,7 +58,7 @@ English
 | Small Promo Tile [RECOMMENDED] | 440×280 | ⬜ Not created | |
 
 ### Screenshot Notes
-1. A Wikipedia article with the control bar and section checklist open, showing a section highlighted while playing.
+1. A Wikipedia article with the control bar and section checklist open, showing the sentence being read highlighted while playing.
 2. The section checklist with a few sections unticked and "Select all" in its mixed state.
 3. The settings page (voice, speed, "Skip this content" options).
 
@@ -124,7 +125,7 @@ TODO (e.g. GitHub Issues)
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
-| 0.1.0 | 2026-11-03 | Initial version: read-aloud with section picker, content filters, voice/speed/volume controls, keyboard shortcuts, toolbar button, collapsible control bar. | Draft |
+| 0.1.0 | 2026-11-03 | Initial version: read-aloud with section picker, content filters, voice/speed/volume controls, keyboard shortcuts, toolbar button, collapsible control bar (minimized by default), sentence highlighting with follow-along scrolling. | Draft |
 
 ## Review Notes
 
