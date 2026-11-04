@@ -289,3 +289,53 @@ describe("filters.sectionToItems (list item pauses)", () => {
     expect(items.map((i) => i.text)).toEqual(["Keep this one", "And this one"]);
   });
 });
+
+describe("filters.chunkIntoSentences: no lost text", () => {
+  const widelyUsed =
+    "Go is widely used in production at Google and in many other organizations and open-source projects.";
+  const longSentence =
+    "Go developers implemented runtime support for concurrency in response to the availability of multicore systems: Although the design of most languages concentrates on innovations in syntax, semantics, or typing, Go is focused on the software development process itself.";
+
+  it("keeps the sentence that precedes an over-long sentence", () => {
+    expect(longSentence.length).toBeGreaterThan(240);
+    const chunks = filters.chunkIntoSentences(`${widelyUsed} ${longSentence}`);
+    expect(chunks[0]).toBe(widelyUsed);
+    // ...and everything is still there, in order.
+    const joined = chunks.join(" ").replace(/\s+/g, " ");
+    expect(joined.indexOf("widely used")).toBeLessThan(joined.indexOf("Go developers"));
+    expect(joined).toContain("software development process itself.");
+  });
+
+  it("does not lose any words across a mix of short and long sentences", () => {
+    const text = [
+      "Short one here.",
+      longSentence,
+      "Another short sentence follows.",
+      longSentence,
+      "The end of the passage.",
+    ].join(" ");
+    const words = (s) => s.replace(/\s+/g, " ").trim().split(" ");
+    expect(words(filters.chunkIntoSentences(text).join(" "))).toEqual(words(text));
+  });
+
+  it("keeps a short buffered sentence even if it is below the minimum length", () => {
+    const chunks = filters.chunkIntoSentences(`Yes. ${longSentence}`);
+    expect(chunks.join(" ")).toContain("Yes.");
+  });
+
+  it("does not split on decimal points inside numbers", () => {
+    const chunks = filters.chunkIntoSentences(
+      "Go was announced in November 2009, and version 1.0 was released in March 2012. Generics arrived in Go 1.18 on March 15, 2022. Pi is about 3.14159."
+    );
+    expect(chunks).toEqual([
+      "Go was announced in November 2009, and version 1.0 was released in March 2012.",
+      "Generics arrived in Go 1.18 on March 15, 2022.",
+      "Pi is about 3.14159.",
+    ]);
+  });
+
+  it("still splits at a real sentence end followed by a digit-leading sentence", () => {
+    const chunks = filters.chunkIntoSentences("It ended in 2012. 2013 was quieter for everyone.");
+    expect(chunks).toEqual(["It ended in 2012.", "2013 was quieter for everyone."]);
+  });
+});

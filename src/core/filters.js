@@ -178,6 +178,7 @@
 
     // Protect a few abbreviations from being treated as sentence ends.
     const protectedText = normalized
+      .replace(/(\d)\.(?=\d)/g, "$1\u0001") // decimal points: version 1.0, 3.14
       .replace(/\b([A-Z])\.\s/g, "$1\u0001 ") // single initials: J. Smith
       .replace(/\b(Mr|Mrs|Ms|Dr|Prof|St|vs|etc|e\.g|i\.e|No|Vol|pp|cf)\.\s/gi, "$1\u0001 ");
 
@@ -195,9 +196,12 @@
 
       // Split overly long sentences on clause boundaries to stay under maxChars.
       if (sentence.length > options.maxChars) {
+        // Emit the sentence waiting in the buffer first; dropping it would
+        // silently skip text and put the long sentence out of order.
+        if (buffer) pushChunk(chunks, buffer, options);
+        buffer = "";
         const pieces = splitLong(sentence, options.maxChars);
         for (const p of pieces) pushChunk(chunks, p, options);
-        buffer = "";
         continue;
       }
 
