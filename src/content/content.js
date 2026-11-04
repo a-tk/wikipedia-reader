@@ -78,10 +78,12 @@
           pauseAfterMs: PAUSE_AFTER_HEADING_MS,
         });
       }
-      const chunks = filters.sectionToChunks(section.contentNodes, filterCfg);
-      chunks.forEach((text) =>
-        queue.push({ sectionId: section.id, sectionIndex, text })
-      );
+      // List items carry a short pauseAfterMs so each item is audibly separate.
+      filters
+        .sectionToItems(section.contentNodes, filterCfg)
+        .forEach((item) =>
+          queue.push({ sectionId: section.id, sectionIndex, ...item })
+        );
     }
     return queue;
   }

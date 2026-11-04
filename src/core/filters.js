@@ -17,6 +17,9 @@
   root.WikiReader = root.WikiReader || {};
   root.WikiReader.filters = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  // Silent gap after each list item, in ms (shorter than the post-heading gap).
+  const DEFAULT_ITEM_PAUSE_MS = 450;
+
   const DEFAULT_FILTERS = {
     infobox: true,
     table: true,
@@ -53,6 +56,17 @@
     ".shortdescription",
     ".nomobile",
   ];
+
+  // Private-use marker appended to the end of every list item so item
+  // boundaries survive the flatten-to-text step. List items rarely end in
+  // punctuation, so without it "Apples" / "Pears" would run together as one
+  // phrase with no audible break.
+  // ITEM_START marks where an item begins (a boundary, no pause) so a short
+  // item is never merged into the text before it; ITEM_BREAK marks where it
+  // ends (a boundary, plus a pause).
+  const ITEM_BREAK = "\uE000";
+  const ITEM_START = "\uE001";
+  const MARKERS = /[\uE000\uE001]/g;
 
   function mergeFilters(filters) {
     return Object.assign({}, DEFAULT_FILTERS, filters || {});
@@ -108,15 +122,28 @@
     return clone;
   }
 
-  // Extract normalized text from the surviving content nodes of one section.
-  function sectionText(contentNodes, filters) {
+  // Extract text from the surviving content nodes of one section, keeping an
+  // ITEM_BREAK marker after each <li>. Internal; see sectionText for the
+  // marker-free version.
+  function sectionTextWithBreaks(contentNodes, filters) {
     const f = mergeFilters(filters);
     const parts = [];
     for (const node of contentNodes || []) {
       if (nodeIsFilteredOut(node, f)) continue;
       const cleaned = cleanNode(node, f);
+      if (isElement(cleaned)) {
+        const doc = cleaned.ownerDocument;
+        cleaned.querySelectorAll("li").forEach((li) => {
+          // Speak a parent item's own text, then pause, before its sub-list.
+          Array.from(li.children)
+            .filter((c) => c.tagName === "UL" || c.tagName === "OL")
+            .forEach((sub) => li.insertBefore(doc.createTextNode(ITEM_BREAK), sub));
+          li.insertBefore(doc.createTextNode(ITEM_START), li.firstChild);
+          li.appendChild(doc.createTextNode(ITEM_BREAK));
+        });
+      }
       const text = cleaned.textContent || "";
-      if (text.trim()) parts.push(text);
+      if (text.replace(MARKERS, "").trim()) parts.push(text);
     }
     let joined = parts.join(" ");
     // Remove any bracketed footnote markers that slipped through as plain text
@@ -125,6 +152,14 @@
       joined = joined.replace(/\[\s*(?:\d+|[a-z]|citation needed|note \d+)\s*\]/gi, "");
     }
     return normalizeWhitespace(joined);
+  }
+
+  // Extract normalized plain text from the surviving content nodes of one
+  // section (list-item markers become spaces).
+  function sectionText(contentNodes, filters) {
+    return normalizeWhitespace(
+      sectionTextWithBreaks(contentNodes, filters).replace(MARKERS, " ")
+    );
   }
 
   function normalizeWhitespace(s) {
@@ -216,6 +251,28 @@
     return chunkIntoSentences(sectionText(contentNodes, filters), chunkOpts);
   }
 
+  // Like sectionToChunks, but returns { text, pauseAfterMs? } items: the last
+  // chunk of every list item carries `pauseAfterMs` so the speech engine
+  // leaves an audible gap between items. Each item is chunked on its own, so a
+  // short item is never merged into its neighbour (which would lose the gap).
+  function sectionToItems(contentNodes, filters, chunkOpts, itemPauseMs) {
+    const pause = itemPauseMs == null ? DEFAULT_ITEM_PAUSE_MS : itemPauseMs;
+    // Splitting on a capture group keeps the delimiters: [text, marker, text, ...].
+    const tokens = sectionTextWithBreaks(contentNodes, filters).split(
+      /([\uE000\uE001])/
+    );
+    const items = [];
+    for (const token of tokens) {
+      if (token === ITEM_BREAK) {
+        // Pause after the most recent chunk, if anything has been spoken yet.
+        if (pause > 0 && items.length > 0) items[items.length - 1].pauseAfterMs = pause;
+      } else if (token !== ITEM_START) {
+        chunkIntoSentences(token, chunkOpts).forEach((text) => items.push({ text }));
+      }
+    }
+    return items;
+  }
+
   return {
     DEFAULT_FILTERS,
     mergeFilters,
@@ -225,5 +282,9 @@
     normalizeWhitespace,
     chunkIntoSentences,
     sectionToChunks,
+    sectionToItems,
+    ITEM_BREAK,
+    ITEM_START,
+    DEFAULT_ITEM_PAUSE_MS,
   };
 });

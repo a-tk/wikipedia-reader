@@ -205,3 +205,87 @@ describe("filters: top-level <style> / TemplateStyles noise", () => {
     expect(text).not.toContain("mw-parser-output");
   });
 });
+
+describe("filters.sectionToItems (list item pauses)", () => {
+  function nodesFor(html) {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return Array.from(div.children);
+  }
+
+  it("puts a pause after every list item, even without punctuation", () => {
+    const nodes = nodesFor(
+      "<p>Intro sentence here.</p><ul><li>Apples</li><li>Pears</li><li>Plums</li></ul>"
+    );
+    const items = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS);
+    expect(items.map((i) => i.text)).toEqual([
+      "Intro sentence here.",
+      "Apples",
+      "Pears",
+      "Plums",
+    ]);
+    expect(items[0].pauseAfterMs).toBeUndefined();
+    expect(items.slice(1).every((i) => i.pauseAfterMs > 0)).toBe(true);
+  });
+
+  it("pauses only after the last chunk of a multi-sentence item", () => {
+    const nodes = nodesFor(
+      "<ul><li>First sentence is here. Second sentence is here.</li><li>Next item.</li></ul>"
+    );
+    const items = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS);
+    expect(items.map((i) => i.text)).toEqual([
+      "First sentence is here.",
+      "Second sentence is here.",
+      "Next item.",
+    ]);
+    expect(items[0].pauseAfterMs).toBeUndefined();
+    expect(items[1].pauseAfterMs).toBeGreaterThan(0);
+  });
+
+  it("handles nested lists without losing text or stacking pauses", () => {
+    const nodes = nodesFor(
+      "<ul><li>Parent item<ul><li>Child one</li><li>Child two</li></ul></li><li>Sibling</li></ul>"
+    );
+    const items = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS);
+    expect(items.map((i) => i.text)).toEqual([
+      "Parent item",
+      "Child one",
+      "Child two",
+      "Sibling",
+    ]);
+    expect(items.every((i) => i.pauseAfterMs > 0)).toBe(true);
+  });
+
+  it("honors a custom pause length, and 0 disables pauses", () => {
+    const nodes = nodesFor("<ul><li>Alpha beta</li><li>Gamma delta</li></ul>");
+    const custom = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS, undefined, 900);
+    expect(custom[0].pauseAfterMs).toBe(900);
+    const none = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS, undefined, 0);
+    expect(none.some((i) => i.pauseAfterMs)).toBe(false);
+  });
+
+  it("text without lists has no pauses, and matches sectionToChunks", () => {
+    const nodes = nodesFor("<p>One sentence is here. Another sentence is here.</p>");
+    const items = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS);
+    expect(items.some((i) => i.pauseAfterMs)).toBe(false);
+    expect(items.map((i) => i.text)).toEqual(
+      filters.sectionToChunks(nodes, filters.DEFAULT_FILTERS)
+    );
+  });
+
+  it("sectionText never leaks the internal marker and separates items", () => {
+    const nodes = nodesFor("<ul><li>Apples</li><li>Pears</li></ul>");
+    const text = filters.sectionText(nodes, filters.DEFAULT_FILTERS);
+    expect(text).toBe("Apples Pears");
+    expect(text).not.toContain(filters.ITEM_BREAK);
+    expect(text).not.toContain(filters.ITEM_START);
+  });
+
+  it("drops filtered content inside lists before pausing", () => {
+    const nodes = nodesFor(
+      '<ul><li>Keep this one<sup class="reference">[1]</sup></li><li>And this one</li></ul>'
+    );
+    const items = filters.sectionToItems(nodes, filters.DEFAULT_FILTERS);
+    expect(items.map((i) => i.text)).toEqual(["Keep this one", "And this one"]);
+  });
+});

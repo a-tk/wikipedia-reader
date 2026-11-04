@@ -34,6 +34,8 @@ Not affiliated with or endorsed by the Wikimedia Foundation.
   saved; settings changed on the options page apply to open articles
   immediately. Clicking the toolbar icon toggles play/pause on an article.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.
+- **Natural list reading** — a short pause follows each bullet or numbered list
+  item (and a parent item before its sub-list), so lists don't run together.
 - **Section highlighting** — the section currently being read is highlighted,
   and its title is announced before its content. When the Introduction is read,
   the article title is announced first.
