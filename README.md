@@ -29,8 +29,9 @@ Not affiliated with or endorsed by the Wikimedia Foundation.
   across sessions and sync via your browser profile.
 - **In-page controls** — a floating bar with previous-section, play/pause,
   stop, next-section, a volume slider (0%–100%), a playback-speed slider
-  (0.5×–3.0×), a settings button, and a collapse button that tucks the panel
-  away so it doesn't cover the article. Slider changes apply live and are
+  (0.5×–3.0×), a settings button, and a collapse button. The panel starts
+  minimized (just the buttons and current-section line) so it doesn't cover the
+  article; click the arrow to expand it and pick sections. Slider changes apply live and are
   saved; settings changed on the options page apply to open articles
   immediately. Clicking the toolbar icon toggles play/pause on an article.
 - **Keyboard shortcuts** — control playback without reaching for the mouse.

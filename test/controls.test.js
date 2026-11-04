@@ -314,3 +314,31 @@ describe("control bar icons", () => {
   });
 });
 
+describe("collapsed by default", () => {
+  it("starts collapsed when asked, and expands on click", () => {
+    const bar = controls.createControlBar({}, { collapsed: true });
+    expect(bar.root.getAttribute("data-collapsed")).toBe("true");
+    expect(bar.collapseBtn.getAttribute("aria-expanded")).toBe("false");
+    expect(bar.collapseBtn.getAttribute("data-icon")).toBe("chevron-up");
+    bar.collapseBtn.click();
+    expect(bar.root.getAttribute("data-collapsed")).toBe("false");
+  });
+
+  it("mount() applies collapsed to both the bar and the container", () => {
+    document.body.innerHTML = "";
+    const ui = controls.mount(document, { sections: [], handlers: {}, collapsed: true });
+    expect(ui.container.getAttribute("data-collapsed")).toBe("true");
+    expect(ui.bar.root.getAttribute("data-collapsed")).toBe("true");
+    ui.bar.collapseBtn.click();
+    expect(ui.container.getAttribute("data-collapsed")).toBe("false");
+    ui.destroy();
+  });
+
+  it("is expanded when no preference is given", () => {
+    document.body.innerHTML = "";
+    const ui = controls.mount(document, { sections: [], handlers: {} });
+    expect(ui.container.getAttribute("data-collapsed")).toBe("false");
+    ui.destroy();
+  });
+});
+

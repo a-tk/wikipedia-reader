@@ -6,7 +6,7 @@
 //   buildOutlineList(sections, opts) -> <ul> of checkboxes (all checked)
 //   collectSelectedIds(listEl)       -> string[] of checked section ids
 //   createControlBar(handlers)       -> { root, setState, setSectionLabel, setShortcuts }
-//   mount(doc, { sections, handlers }) -> { bar, outline, destroy }
+//   mount(doc, { sections, handlers, collapsed }) -> { bar, outline, destroy }
 (function (root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) {
@@ -385,7 +385,9 @@
     }
 
     setState("idle");
-    setCollapsed(false, true);
+    // Start collapsed when asked (the content script does); standalone bars
+    // default to expanded.
+    setCollapsed(!!(opts && opts.collapsed), true);
     return {
       root,
       playBtn,
@@ -425,6 +427,7 @@
       volume: cfg.volume,
       rate: cfg.rate,
       shortcuts: cfg.shortcuts,
+      collapsed: cfg.collapsed,
     });
     const outline = buildOutlineList(cfg.sections, { document: d });
     const selectAll = buildSelectAll(outline, { document: d });
@@ -444,6 +447,7 @@
       outlinePanel,
     ]);
 
+    container.setAttribute("data-collapsed", String(!!cfg.collapsed));
     (d.body || d.documentElement).appendChild(container);
 
     return {

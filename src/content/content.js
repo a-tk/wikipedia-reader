@@ -310,6 +310,9 @@
       sections,
       volume: currentSettings.voice.volume,
       rate: currentSettings.voice.rate,
+      // Minimized by default so the panel doesn't cover the article; the
+      // user expands it to pick sections or adjust sliders.
+      collapsed: true,
       handlers: {
         onToggle: actions.togglePlay,
         onStop: actions.stop,

@@ -153,8 +153,12 @@
 
 /* Collapsed: keep only the button row. */
 #wikireader-root .wr-bar[data-collapsed="true"] .wr-slider-row,
-#wikireader-root .wr-bar[data-collapsed="true"] .wr-section-label,
 #wikireader-root[data-collapsed="true"] .wr-outline-panel {
+  display: none;
+}
+/* The status line stays visible while collapsed (current section, hints and
+   errors) but takes no space when empty. */
+#wikireader-root .wr-bar[data-collapsed="true"] .wr-section-label:empty {
   display: none;
 }
 
