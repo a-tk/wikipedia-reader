@@ -127,8 +127,7 @@ CHROMEWEBSTORE.md        Store listing copy, permission justifications, checklis
 `speechSynthesis` only exists in page contexts, so all speaking happens in the
 content script; the service worker exists only to forward keyboard commands to
 the active tab. Long articles are split into short sentence-sized chunks and
-spoken as a managed queue, with a periodic `pause()`/`resume()` keep-alive to
-work around Chromium stalling long speech queues.
+spoken one at a time as a managed queue.
 
 Sentence highlighting works without touching the article's markup: each spoken
 sentence is traced back to its exact position in the page (skipping the

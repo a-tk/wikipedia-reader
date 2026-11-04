@@ -1,9 +1,8 @@
 // speech.js — a managed queue over the Web Speech API (speechSynthesis).
 //
 // Why a queue instead of one big utterance:
-//   Chrome truncates long utterances and can stall queued speech after ~15s.
-//   We split content into short chunks (from filters.js), speak them one at a
-//   time, and run a periodic pause()/resume() keep-alive while speaking.
+//   Chrome truncates long utterances. We split content into short chunks (from
+//   filters.js) and speak them one at a time, so no single utterance runs long.
 //
 // The engine is dependency-injected (synth + utterance factory) so it can be
 // unit tested with a mock in jsdom, where real speechSynthesis is absent.
@@ -47,10 +46,9 @@
   }
 
   class SpeechEngine {
-    // deps: { synth, createUtterance, keepAliveMs }
+    // deps: { synth, createUtterance }
     //   synth           — a speechSynthesis-like object
     //   createUtterance — (text) => SpeechSynthesisUtterance-like object
-    //   keepAliveMs     — interval for the pause/resume keep-alive (0 disables)
     constructor(deps = {}) {
       this.synth =
         deps.synth ||
@@ -61,14 +59,12 @@
           typeof SpeechSynthesisUtterance !== "undefined"
             ? new SpeechSynthesisUtterance(text)
             : { text });
-      this.keepAliveMs = deps.keepAliveMs == null ? 10000 : deps.keepAliveMs;
 
       this.queue = [];
       this.index = -1;
       this.state = STATE.IDLE;
       this.settings = { voice: null, rate: 1, pitch: 1, volume: 1 };
       this.listeners = {};
-      this._keepAliveTimer = null;
       this._gapTimer = null;
       this._current = null;
       // Bumped whenever a new utterance is spoken or playback is cancelled, so
@@ -134,7 +130,6 @@
       if (this.index < 0) this.index = 0;
       this._emit("start", { total: this.queue.length });
       this._speakCurrent();
-      this._startKeepAlive();
     }
 
     _speakCurrent() {
@@ -219,14 +214,12 @@
       this.state = STATE.PAUSED;
       this._pausedInGap = wasInGap;
       if (this.synth.pause) this.synth.pause();
-      this._stopKeepAlive();
       this._emit("pause", { index: this.index });
     }
 
     resume() {
       if (this.state !== STATE.PAUSED) return;
       this.state = STATE.PLAYING;
-      this._startKeepAlive();
       this._emit("resume", { index: this.index });
       if (this._pausedInGap) {
         // The next chunk had not started speaking yet; start it now.
@@ -249,7 +242,6 @@
       this._gen += 1;
       this._clearGapTimer();
       this._pausedInGap = false;
-      this._stopKeepAlive();
       this._current = null;
       if (this.synth && this.synth.cancel) this.synth.cancel();
       if (wasActive) this._emit("stop", {});
@@ -328,7 +320,6 @@
           this._emit("resume", { index: this.index });
         }
         this._speakCurrent();
-        this._startKeepAlive();
       }
     }
 
@@ -337,28 +328,8 @@
       this._gen += 1;
       this._clearGapTimer();
       this._pausedInGap = false;
-      this._stopKeepAlive();
       this._current = null;
       this._emit("end", {});
-    }
-
-    _startKeepAlive() {
-      if (!this.keepAliveMs || this._keepAliveTimer) return;
-      this._keepAliveTimer = setInterval(() => {
-        // The documented Chrome workaround: a quick pause()+resume() keeps the
-        // synth from stalling on long queues.
-        if (this.state === STATE.PLAYING && this.synth.pause && this.synth.resume) {
-          this.synth.pause();
-          this.synth.resume();
-        }
-      }, this.keepAliveMs);
-    }
-
-    _stopKeepAlive() {
-      if (this._keepAliveTimer) {
-        clearInterval(this._keepAliveTimer);
-        this._keepAliveTimer = null;
-      }
     }
   }
 

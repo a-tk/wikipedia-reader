@@ -40,7 +40,6 @@ function makeEngine(synth) {
   return new SpeechEngine({
     synth,
     createUtterance: (text) => ({ text }),
-    keepAliveMs: 0, // disable timers in unit tests
   });
 }
 
@@ -309,6 +308,14 @@ describe("SpeechEngine post-heading pause gap", () => {
     vi.advanceTimersByTime(700);
     expect(synth.spoken.length).toBe(2);
     expect(synth.spoken[1].text).toBe("History prose.");
+  });
+
+  it("never pauses or resumes the synth on its own while playing", () => {
+    engine.play();
+    vi.advanceTimersByTime(120_000); // long enough for any periodic timer to fire
+    expect(synth.pauseCalls).toBe(0);
+    expect(synth.resumeCalls).toBe(0);
+    expect(vi.getTimerCount()).toBe(0); // no interval left running
   });
 
   it("does not speak the next chunk if stopped during the gap", () => {

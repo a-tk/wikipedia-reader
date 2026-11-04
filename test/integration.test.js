@@ -104,7 +104,6 @@ describe("end-to-end: extract -> filter -> speak", () => {
       const engine = new SpeechEngine({
         synth,
         createUtterance: (text) => ({ text }),
-        keepAliveMs: 0,
       });
       const sectionsEntered = [];
       engine.on("section", ({ sectionId }) => sectionsEntered.push(sectionId));
