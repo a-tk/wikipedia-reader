@@ -142,12 +142,12 @@ describe("createControlBar", () => {
   it("reflects engine state into the play button", () => {
     const bar = controls.createControlBar({}, { document });
     bar.setState("playing");
-    expect(bar.playBtn.textContent).toBe("⏸");
+    expect(bar.playBtn.getAttribute("data-icon")).toBe("pause");
     expect(bar.playBtn.getAttribute("aria-label")).toBe("Pause");
     bar.setState("paused");
     expect(bar.playBtn.getAttribute("aria-label")).toBe("Resume");
     bar.setState("idle");
-    expect(bar.playBtn.textContent).toBe("▶");
+    expect(bar.playBtn.getAttribute("data-icon")).toBe("play");
   });
 });
 
@@ -279,6 +279,38 @@ describe("control bar: collapse and shortcut tooltips", () => {
     bar.setShortcuts({ stop: "Ctrl+Shift+X" });
     expect(bar.stopBtn.getAttribute("title")).toBe("Stop (Ctrl+Shift+X)");
     expect(bar.playBtn.getAttribute("title")).toBe("Play / pause");
+  });
+});
+
+describe("control bar icons", () => {
+  it("every button shows one SVG icon of the same size, with no text glyph", () => {
+    const bar = controls.createControlBar({});
+    const buttons = [bar.playBtn, bar.stopBtn, bar.prevBtn, bar.skipBtn, bar.settingsBtn, bar.collapseBtn];
+    buttons.forEach((b) => {
+      const svgs = b.querySelectorAll("svg.wr-icon");
+      expect(svgs.length, b.className).toBe(1);
+      expect(svgs[0].getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(svgs[0].getAttribute("aria-hidden")).toBe("true");
+      expect(b.textContent).toBe(""); // name comes from aria-label, not a glyph
+      expect(b.getAttribute("aria-label")).toBeTruthy();
+    });
+  });
+
+  it("swaps the play icon for pause and back without leaving stale children", () => {
+    const bar = controls.createControlBar({});
+    bar.setState("playing");
+    expect(bar.playBtn.querySelectorAll("svg").length).toBe(1);
+    expect(bar.playBtn.getAttribute("data-icon")).toBe("pause");
+    bar.setState("paused");
+    expect(bar.playBtn.querySelectorAll("svg").length).toBe(1);
+    expect(bar.playBtn.getAttribute("data-icon")).toBe("play");
+  });
+
+  it("flips the collapse chevron", () => {
+    const bar = controls.createControlBar({});
+    expect(bar.collapseBtn.getAttribute("data-icon")).toBe("chevron-down");
+    bar.collapseBtn.click();
+    expect(bar.collapseBtn.getAttribute("data-icon")).toBe("chevron-up");
   });
 });
 

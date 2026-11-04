@@ -43,6 +43,12 @@
   align-items: center;
   justify-content: center;
 }
+#wikireader-root .wr-btn .wr-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
 #wikireader-root .wr-btn:hover {
   background: #eaecf0;
 }

@@ -34,6 +34,58 @@
     return el;
   }
 
+  // Button icons are inline SVGs rather than Unicode characters. Characters
+  // such as ▶ and ⏸ come from different fallback fonts (some as colour emoji),
+  // so they render at inconsistent sizes. SVGs share one viewBox and inherit
+  // the button's text colour via currentColor, so they match everywhere.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const ICONS = {
+    play: [["path", { d: "M8 5v14l11-7z" }]],
+    pause: [["path", { d: "M6 5h4v14H6zM14 5h4v14h-4z" }]],
+    stop: [["path", { d: "M6 6h12v12H6z" }]],
+    prev: [["path", { d: "M6 6h2.5v12H6zM19 6v12L9.5 12z" }]],
+    next: [["path", { d: "M15.5 6H18v12h-2.5zM5 6l9.5 6L5 18z" }]],
+    // Gear: a ring with eight teeth (a dashed, thick circle), all stroked.
+    settings: [
+      ["circle", { cx: 12, cy: 12, r: 5.5, fill: "none", "stroke-width": 3 }, true],
+      [
+        "circle",
+        {
+          cx: 12, cy: 12, r: 8, fill: "none", "stroke-width": 3,
+          "stroke-dasharray": "3.1 3.18",
+          "stroke-linecap": "butt", // square-ended teeth
+        },
+        true,
+      ],
+    ],
+    "chevron-down": [["path", { d: "M6 9l6 6 6-6", fill: "none", "stroke-width": 2.5 }, true]],
+    "chevron-up": [["path", { d: "M6 15l6-6 6 6", fill: "none", "stroke-width": 2.5 }, true]],
+  };
+
+  // Replace a button's contents with the named icon. The accessible name comes
+  // from the button's aria-label, so the SVG itself is hidden from AT.
+  function setIcon(doc, button, name) {
+    const svg = doc.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "wr-icon");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    svg.setAttribute("fill", "currentColor");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    (ICONS[name] || []).forEach(([tag, attrs, stroked]) => {
+      const el = doc.createElementNS(SVG_NS, tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+      // Filled shapes get no stroke; stroked shapes (chevrons, gear) get no fill.
+      if (!stroked) el.setAttribute("stroke", "none");
+      svg.appendChild(el);
+    });
+    button.textContent = "";
+    button.appendChild(svg);
+    button.setAttribute("data-icon", name);
+  }
+
   // Build the outline checklist. Each section becomes a checkbox row, indented
   // by heading level, checked by default.
   function buildOutlineList(sections, opts) {
@@ -183,7 +235,6 @@
       type: "button",
       "aria-label": "Play",
       title: tipText("toggle-play", opts && opts.shortcuts),
-      text: "▶",
       onClick: () => cb.onToggle && cb.onToggle(),
     });
     const stopBtn = h(h2, "button", {
@@ -191,7 +242,6 @@
       type: "button",
       "aria-label": "Stop",
       title: tipText("stop", opts && opts.shortcuts),
-      text: "■",
       onClick: () => cb.onStop && cb.onStop(),
     });
     const prevBtn = h(h2, "button", {
@@ -199,7 +249,6 @@
       type: "button",
       "aria-label": "Previous section",
       title: tipText("prev-section", opts && opts.shortcuts),
-      text: "⏮",
       onClick: () => cb.onPrev && cb.onPrev(),
     });
     const skipBtn = h(h2, "button", {
@@ -207,7 +256,6 @@
       type: "button",
       "aria-label": "Next section",
       title: tipText("skip-section", opts && opts.shortcuts),
-      text: "⏭",
       onClick: () => cb.onSkip && cb.onSkip(),
     });
     const settingsBtn = h(h2, "button", {
@@ -215,7 +263,6 @@
       type: "button",
       "aria-label": "Settings",
       title: "Settings",
-      text: "⚙",
       onClick: () => cb.onSettings && cb.onSettings(),
     });
 
@@ -225,9 +272,15 @@
       "aria-label": "Collapse controls",
       "aria-expanded": "true",
       title: "Collapse / expand",
-      text: "▾",
       onClick: () => setCollapsed(root.getAttribute("data-collapsed") !== "true"),
     });
+
+    setIcon(h2, playBtn, "play");
+    setIcon(h2, stopBtn, "stop");
+    setIcon(h2, prevBtn, "prev");
+    setIcon(h2, skipBtn, "next");
+    setIcon(h2, settingsBtn, "settings");
+    setIcon(h2, collapseBtn, "chevron-down");
 
     const sectionLabel = h(h2, "span", {
       class: "wr-section-label",
@@ -286,10 +339,10 @@
     function setState(state) {
       root.setAttribute("data-state", state);
       if (state === "playing") {
-        playBtn.textContent = "⏸";
+        setIcon(h2, playBtn, "pause");
         playBtn.setAttribute("aria-label", "Pause");
       } else {
-        playBtn.textContent = "▶";
+        setIcon(h2, playBtn, "play");
         playBtn.setAttribute("aria-label", state === "paused" ? "Resume" : "Play");
       }
     }
@@ -298,7 +351,7 @@
     // section list, leaving just the button row so the page stays readable.
     function setCollapsed(collapsed, silent) {
       root.setAttribute("data-collapsed", collapsed ? "true" : "false");
-      collapseBtn.textContent = collapsed ? "▴" : "▾";
+      setIcon(h2, collapseBtn, collapsed ? "chevron-up" : "chevron-down");
       collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
       collapseBtn.setAttribute(
         "aria-label",
